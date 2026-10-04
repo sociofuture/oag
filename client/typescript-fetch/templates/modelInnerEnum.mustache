@@ -1,0 +1,10 @@
+/**
+ * {{{description}}}
+ * @export
+ */
+export const {{enumName}} = {
+{{#entries}}
+    {{key}}: {{{literal}}}{{sep}}
+{{/entries}}
+} as const;
+export type {{enumName}} = typeof {{enumName}}[keyof typeof {{enumName}}];

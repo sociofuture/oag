@@ -1,0 +1,30 @@
+# 依存パッケージ
+node_modules/
+
+# 生成物の出力先 (動作確認で使う作業ディレクトリ)
+out/
+tmp/
+
+# ログ
+*.log
+npm-debug.log*
+
+# 環境変数・秘密情報
+.env
+.env.*
+
+# Python (生成した FastAPI / Flask / Falcon の動作確認用)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# エディタ・OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Claude Code のローカル設定
+.claude/settings.local.json

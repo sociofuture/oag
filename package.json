@@ -1,0 +1,17 @@
+{
+  "name": "oag",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "oag.js",
+  "scripts": {
+    "start": "node oag.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "mustache": "^4.2.0",
+    "yaml": "^2.9.1"
+  }
+}

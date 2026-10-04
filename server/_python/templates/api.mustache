@@ -1,0 +1,49 @@
+{{{generated}}}
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+{{#mods}}
+import {{m}}
+{{/mods}}
+{{#typingAny}}
+from typing import Any
+{{/typingAny}}
+{{#uploadFile}}
+
+from fastapi import UploadFile
+{{/uploadFile}}
+{{#responseImport}}
+
+from fastapi.responses import Response
+{{/responseImport}}
+{{#hasModelImports}}
+
+from ..models import {{{modelImports}}}
+{{/hasModelImports}}
+{{#secured}}
+
+from {{{authImport}}} import AuthInfo
+{{/secured}}
+
+
+class {{abcName}}(ABC):
+    """{{#summary}}{{{.}}}{{/summary}}{{^summary}}{{operationId}}{{/summary}}
+
+    実装は _impl の {{abcName}}Impl に書く (このファイルは編集しない)。
+    """
+
+    @abstractmethod
+    def {{methodName}}(self{{#args}}, {{{decl}}}{{/args}}) -> {{{returnType}}}:
+        """{{#summary}}{{{.}}}{{/summary}}{{^summary}}{{methodName}}{{/summary}}
+{{#description}}
+
+        {{{.}}}
+{{/description}}
+{{#args}}
+{{#description}}
+
+        :param {{name}}: {{{.}}}
+{{/description}}
+{{/args}}
+        """
+        raise NotImplementedError

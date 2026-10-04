@@ -1,0 +1,52 @@
+{{{generated}}}
+"""Flask / Falcon 用の実行時ヘルパ (入力の検証・出力の変換・起動時チェック)。"""
+from __future__ import annotations
+
+import inspect
+from functools import lru_cache
+from typing import Any
+
+from pydantic import TypeAdapter, ValidationError
+
+
+class ApiError(Exception):
+    """HTTP エラー応答にする例外。実装 (_impl) からも raise してよい。"""
+
+    def __init__(self, status: int, detail: Any) -> None:
+        super().__init__(str(detail))
+        self.status = status
+        self.detail = detail
+
+
+@lru_cache(maxsize=None)
+def _adapter(tp: Any) -> TypeAdapter:
+    return TypeAdapter(tp)
+
+
+def parse(tp: Any, value: Any, name: str, loc: str, required: bool = True, default: Any = None) -> Any:
+    """リクエストの値を型 tp に検証・変換する。不正なら ApiError(422)。"""
+    if value is None:
+        if required:
+            raise ApiError(422, [{"loc": [loc, name], "msg": "Field required", "type": "missing"}])
+        return default
+    try:
+        return _adapter(tp).validate_python(value)
+    except ValidationError as e:
+        raise ApiError(
+            422,
+            [{"loc": [loc, name, *err["loc"]], "msg": err["msg"], "type": err["type"]} for err in e.errors()],
+        ) from e
+
+
+def dump(tp: Any, value: Any) -> Any:
+    """実装の戻り値を JSON にできる値に変換する。"""
+    return _adapter(tp).dump_python(value, mode="json", by_alias=True)
+
+
+def verify(abc: type, impl: type) -> None:
+    """起動時に、実装が ABC を継承し抽象メソッドをすべて実装していることを確認する。"""
+    if not issubclass(impl, abc):
+        raise TypeError(f"{impl.__module__}.{impl.__name__} は {abc.__name__} を継承してください")
+    if inspect.isabstract(impl):
+        missing = ", ".join(sorted(getattr(impl, "__abstractmethods__", ())))
+        raise TypeError(f"{impl.__module__}.{impl.__name__} に未実装のメソッドがあります: {missing}")

@@ -1,0 +1,161 @@
+package {{modelPackage}};
+
+{{#imports}}
+import {{.}};
+{{/imports}}
+{{#swagger}}
+import io.swagger.annotations.*;
+{{/swagger}}
+import {{ws}}.validation.constraints.*;
+import {{ws}}.validation.Valid;
+
+import java.util.Objects;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+
+
+
+{{#description}}
+/**
+ * {{{.}}}
+ **/
+{{#swagger}}
+@ApiModel(description = "{{{descriptionJava}}}")
+{{/swagger}}
+{{/description}}
+@JsonTypeName("{{schemaName}}")
+{{{generatedAnnotation}}}
+public class {{classname}}   {
+{{#innerEnums}}
+{{> modelInnerEnum}}
+{{/innerEnums}}
+{{#vars}}
+  private {{#fieldValid}}@Valid {{/fieldValid}}{{{datatype}}} {{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+{{/vars}}
+
+  public {{classname}}() {
+  }
+{{#hasRequiredVars}}
+
+  @JsonCreator
+  public {{classname}}(
+{{#requiredVars}}
+    @JsonProperty(required = true, value = "{{baseName}}") {{{datatype}}} {{name}}{{ctorSep}}
+{{/requiredVars}}
+  ) {
+{{#requiredVars}}
+    this.{{name}} = {{name}};
+{{/requiredVars}}
+  }
+{{/hasRequiredVars}}
+
+{{#vars}}
+  /**
+{{#description}}
+   * {{{.}}}
+{{/description}}
+   **/
+  public {{classname}} {{name}}({{{datatype}}} {{name}}) {
+    this.{{name}} = {{name}};
+    return this;
+  }
+
+{{{sp2}}}
+{{#swagger}}
+  @ApiModelProperty({{#required}}required = true, {{/required}}value = "{{{descriptionJava}}}")
+{{/swagger}}
+  @JsonProperty({{#required}}required = true, value = {{/required}}"{{baseName}}")
+  {{{getterPrefix}}}public {{{datatype}}} {{getter}}() {
+    return {{name}};
+  }
+
+  @JsonProperty({{#required}}required = true, value = {{/required}}"{{baseName}}")
+  public void {{setter}}({{{datatype}}} {{name}}) {
+    this.{{name}} = {{name}};
+  }
+{{#isContainer}}
+
+  public {{classname}} add{{Name}}Item({{#isMap}}String key, {{/isMap}}{{{itemType}}} {{name}}Item) {
+    if (this.{{name}} == null) {
+      this.{{name}} = new {{containerImpl}}<>();
+    }
+
+    {{#isMap}}
+    this.{{name}}.put(key, {{name}}Item);
+    {{/isMap}}
+    {{^isMap}}
+    this.{{name}}.add({{name}}Item);
+    {{/isMap}}
+    return this;
+  }
+
+  public {{classname}} remove{{Name}}Item({{#isMap}}String key{{/isMap}}{{^isMap}}{{{itemType}}} {{name}}Item{{/isMap}}) {
+    {{#isMap}}
+    if (this.{{name}} != null) {
+      this.{{name}}.remove(key);
+    }
+    {{/isMap}}
+    {{^isMap}}
+    if ({{name}}Item != null && this.{{name}} != null) {
+      this.{{name}}.remove({{name}}Item);
+    }
+    {{/isMap}}
+
+    return this;
+  }
+{{/isContainer}}
+{{^isContainer}}
+
+{{/isContainer}}
+{{/vars}}
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+{{#hasVars}}
+    {{classname}} {{lcClassname}} = ({{classname}}) o;
+    return {{#vars}}Objects.equals(this.{{name}}, {{lcClassname}}.{{name}}){{{eqSep}}}{{/vars}}
+{{/hasVars}}
+{{^hasVars}}
+    return true;
+{{/hasVars}}
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash({{#vars}}{{name}}{{hashSep}}{{/vars}});
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("class {{classname}} {\n");
+{{{sp4}}}
+{{#vars}}
+    sb.append("    {{name}}: ").append(toIndentedString({{name}})).append("\n");
+{{/vars}}
+    sb.append("}");
+    return sb.toString();
+  }
+
+  /**
+   * Convert the given object to string with each line indented by 4 spaces
+   * (except the first line).
+   */
+  private String toIndentedString(Object o) {
+    if (o == null) {
+      return "null";
+    }
+    return o.toString().replace("\n", "\n    ");
+  }
+
+
+}
+

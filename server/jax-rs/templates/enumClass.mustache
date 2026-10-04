@@ -1,0 +1,43 @@
+package {{modelPackage}};
+
+import java.util.Objects;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+{{#imports}}
+import {{.}};
+{{/imports}}
+
+/**
+ * {{#description}}{{{.}}}{{/description}}{{^description}}Gets or Sets {{schemaName}}{{/description}}
+ */
+public enum {{classname}} {
+{{#values}}
+  {{name}}({{{literal}}}){{sep}}
+{{/values}}
+
+  private {{javaType}} value;
+
+  {{classname}}({{javaType}} v) {
+    value = v;
+  }
+
+  @JsonValue
+  public {{javaType}} value() {
+    return value;
+  }
+
+  @Override
+  public String toString() {
+    return String.valueOf(value);
+  }
+
+  @JsonCreator
+  public static {{classname}} fromValue({{javaType}} v) {
+    for ({{classname}} b : {{classname}}.values()) {
+      if (Objects.equals(b.value, v)) {
+        return b;
+      }
+    }
+    throw new IllegalArgumentException("Unexpected value '" + v + "'");
+  }
+}

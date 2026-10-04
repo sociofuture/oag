@@ -1,0 +1,35 @@
+{{{generated}}}
+from __future__ import annotations
+
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Cookie, Depends, File, Form, Header, Path, Query, UploadFile
+from fastapi.responses import PlainTextResponse, Response
+
+from . import models
+{{#abcImports}}
+from .apis.{{mod}}_api import {{abc}}
+{{/abcImports}}
+{{#implImports}}
+from {{from}} import {{impl}}
+{{/implImports}}
+{{#anySecured}}
+from {{{authFrom}}} import AuthInfo, verify_access_token
+{{/anySecured}}
+
+router = APIRouter(prefix="{{prefix}}")
+{{#routes}}
+
+
+@router.{{method}}(
+{{#decorator}}
+    {{{d}}},
+{{/decorator}}
+)
+def {{methodName}}(
+{{#args}}
+    {{{d}}},
+{{/args}}
+) -> {{{returnType}}}:
+    return impl.{{methodName}}({{{call}}})
+{{/routes}}

@@ -1,0 +1,143 @@
+openapi: 3.0.3
+info:
+  title: Mini Petstore
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/v2
+paths:
+  /pet:
+    post:
+      tags: [pet]
+      summary: Add a new pet
+      operationId: addPet
+      requestBody:
+        required: true
+        description: Pet object to add
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '405':
+          description: Invalid input
+  /pet/findByStatus:
+    get:
+      tags: [pet]
+      summary: Finds pets by status
+      operationId: findPetsByStatus
+      parameters:
+        - name: status
+          in: query
+          required: true
+          description: Status values
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [available, pending, sold]
+        - name: limit
+          in: query
+          schema: { type: integer, format: int32, default: 20, minimum: 1 }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Pet' }
+  /pet/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        description: ID of pet
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [pet]
+      operationId: getPetById
+      parameters:
+        - { name: api_key, in: header, schema: { type: string } }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+        '404': { description: not found }
+    post:
+      tags: [pet]
+      operationId: updatePetWithForm
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                name: { type: string, description: new name }
+                status: { type: string }
+      responses:
+        '405': { description: Invalid input }
+  /store/inventory:
+    get:
+      tags: [store]
+      operationId: getInventory
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { type: integer, format: int32 }
+components:
+  schemas:
+    Category:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+    Tag:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+    Status:
+      type: string
+      enum: [available, pending, sold]
+    Pet:
+      type: object
+      required: [name, photoUrls]
+      description: A pet for sale
+      properties:
+        id: { type: integer, format: int64 }
+        category: { $ref: '#/components/schemas/Category' }
+        name: { type: string, example: doggie, maxLength: 64 }
+        photoUrls:
+          type: array
+          items: { type: string }
+        tags:
+          type: array
+          items: { $ref: '#/components/schemas/Tag' }
+        status:
+          type: string
+          description: pet status in the store
+          enum: [available, pending, sold]
+          default: available
+        birthday: { type: string, format: date }
+        updatedAt: { type: string, format: date-time }
+        attributes:
+          type: object
+          additionalProperties: { type: string }
+    Dog:
+      allOf:
+        - $ref: '#/components/schemas/Pet'
+        - type: object
+          properties:
+            bark: { type: boolean }

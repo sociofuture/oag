@@ -1,0 +1,177 @@
+{{{header}}}
+
+
+import * as runtime from '../runtime';
+{{#hasImports}}
+import type {
+{{#imports}}
+  {{name}},
+{{/imports}}
+} from '../models/index';
+import {
+{{#imports}}
+    {{name}}FromJSON,
+    {{name}}ToJSON,
+{{/imports}}
+} from '../models/index';
+{{/hasImports}}
+
+{{#requestInterfaces}}
+export interface {{requestName}} {
+{{#requestFields}}
+    {{key}}{{optional}}: {{{type}}};
+{{/requestFields}}
+}
+
+{{/requestInterfaces}}
+/**
+ * {{{description}}}
+ */
+export class {{classname}} extends runtime.BaseAPI {
+
+{{#operations}}
+    /**
+     * {{{summary}}}
+{{#notes}}
+     * {{{.}}}
+{{/notes}}
+     */
+    async {{nickname}}Raw({{#hasParams}}requestParameters: {{requestName}}, {{/hasParams}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<{{{returnType}}}>> {
+{{#requiredParams}}
+        if (requestParameters['{{key}}'] == null) {
+            throw new runtime.RequiredError(
+                '{{key}}',
+                'Required parameter "{{key}}" was null or undefined when calling {{nickname}}().'
+            );
+        }
+
+{{/requiredParams}}
+        const queryParameters: any = {};
+
+{{#queryParams}}
+        if (requestParameters['{{key}}'] != null) {
+            queryParameters['{{{rawName}}}'] = {{{value}}};
+        }
+
+{{/queryParams}}
+        const headerParameters: runtime.HTTPHeaders = {};
+
+{{#contentType}}
+        headerParameters['Content-Type'] = '{{{.}}}';
+
+{{/contentType}}
+{{#headerParams}}
+        if (requestParameters['{{key}}'] != null) {
+            headerParameters['{{{rawName}}}'] = String(requestParameters['{{key}}']);
+        }
+
+{{/headerParams}}
+{{#security}}
+{{#isBasic}}
+        if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
+            headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
+        }
+{{/isBasic}}
+{{#isToken}}
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("{{name}}", {{{scopes}}});
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+{{/isToken}}
+{{#isApiKey}}
+        if (this.configuration && this.configuration.apiKey) {
+{{#inHeader}}
+            headerParameters["{{{keyName}}}"] = await this.configuration.apiKey("{{{keyName}}}"); // {{name}} authentication
+{{/inHeader}}
+{{#inQuery}}
+            queryParameters["{{{keyName}}}"] = await this.configuration.apiKey("{{{keyName}}}"); // {{name}} authentication
+{{/inQuery}}
+        }
+{{/isApiKey}}
+{{/security}}
+{{#hasFormParams}}
+        const consumes: runtime.Consume[] = [
+            { contentType: '{{{formContentType}}}' },
+        ];
+        // @ts-ignore: canConsumeForm may be unused
+        const canConsumeForm = runtime.canConsumeForm(consumes);
+
+        let formParams: { append(param: string, value: any): any };
+        let useForm = false;
+{{#isMultipart}}
+        useForm = canConsumeForm;
+        if (useForm) {
+            formParams = new FormData();
+        } else {
+            formParams = new URLSearchParams();
+        }
+{{/isMultipart}}
+{{^isMultipart}}
+        formParams = new URLSearchParams();
+{{/isMultipart}}
+
+{{#formParams}}
+        if (requestParameters['{{key}}'] != null) {
+            formParams.append('{{{rawName}}}', requestParameters['{{key}}'] as any);
+        }
+
+{{/formParams}}
+{{/hasFormParams}}
+        const response = await this.request({
+            path: {{{path}}},
+            method: '{{method}}',
+            headers: headerParameters,
+            query: queryParameters,
+{{#bodyExpr}}
+            body: {{{.}}},
+{{/bodyExpr}}
+{{#hasFormParams}}
+            body: formParams,
+{{/hasFormParams}}
+        }, initOverrides);
+
+{{#resp}}
+{{#isVoid}}
+        return new runtime.VoidApiResponse(response);
+{{/isVoid}}
+{{#isBlob}}
+        return new runtime.BlobApiResponse(response);
+{{/isBlob}}
+{{#isText}}
+        if (this.isJsonMime(response.headers.get('content-type'))) {
+            return new runtime.JSONApiResponse<{{{type}}}>(response);
+        } else {
+            return new runtime.TextApiResponse(response) as any;
+        }
+{{/isText}}
+{{#isJsonConv}}
+        return new runtime.JSONApiResponse(response, (jsonValue) => {{{expr}}});
+{{/isJsonConv}}
+{{#isJsonAny}}
+        return new runtime.JSONApiResponse<any>(response);
+{{/isJsonAny}}
+{{/resp}}
+    }
+
+    /**
+     * {{{summary}}}
+{{#notes}}
+     * {{{.}}}
+{{/notes}}
+     */
+    async {{nickname}}({{#hasParams}}requestParameters: {{requestName}}{{#allOptional}} = {}{{/allOptional}}, {{/hasParams}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{{{returnType}}}> {
+{{#isVoid}}
+        await this.{{nickname}}Raw({{#hasParams}}requestParameters, {{/hasParams}}initOverrides);
+{{/isVoid}}
+{{^isVoid}}
+        const response = await this.{{nickname}}Raw({{#hasParams}}requestParameters, {{/hasParams}}initOverrides);
+        return await response.value();
+{{/isVoid}}
+    }
+
+{{/operations}}
+}

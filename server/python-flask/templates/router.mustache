@@ -1,0 +1,40 @@
+{{{generated}}}
+from __future__ import annotations
+
+from flask import Blueprint, Response, jsonify, request
+
+from . import models
+from .runtime import ApiError, dump, parse, verify
+{{#abcImports}}
+from .apis.{{mod}}_api import {{abc}}
+{{/abcImports}}
+{{#implImports}}
+from {{from}} import {{impl}}
+{{/implImports}}
+{{#anySecured}}
+from {{{authFrom}}} import verify_access_token
+{{/anySecured}}
+
+# 起動時に、実装が ABC を満たしているか確認する (未実装があれば import 時に TypeError)
+{{#abcImports}}
+verify({{abc}}, {{abc}}Impl)
+{{/abcImports}}
+
+router = Blueprint("api", __name__, url_prefix={{{prefix}}})
+
+
+@router.errorhandler(ApiError)
+def _handle_api_error(e: ApiError):
+    return jsonify({"detail": e.detail}), e.status
+{{#routes}}
+
+
+@router.route({{{path}}}, methods=["{{method}}"])
+def {{methodName}}({{{viewArgs}}}):
+    impl = {{implName}}()
+{{#extract}}
+    {{{line}}}
+{{/extract}}
+    result = impl.{{methodName}}({{{call}}})
+    {{{returnLine}}}
+{{/routes}}

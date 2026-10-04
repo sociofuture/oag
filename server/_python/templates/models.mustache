@@ -1,0 +1,51 @@
+{{{generated}}}
+from __future__ import annotations
+
+{{#mods}}
+import {{m}}
+{{/mods}}
+from enum import Enum
+{{#typingAny}}
+from typing import Any
+{{/typingAny}}
+
+from pydantic import BaseModel, ConfigDict, Field
+{{#enums}}
+
+
+class {{classname}}({{base}}, Enum):
+    {{#description}}
+    """{{{.}}}"""
+
+    {{/description}}
+    {{#members}}
+    {{name}} = {{{literal}}}
+    {{/members}}
+{{/enums}}
+{{#models}}
+
+
+class {{classname}}(BaseModel):
+    {{#description}}
+    """{{{.}}}"""
+
+    {{/description}}
+    {{#needsAlias}}
+    model_config = ConfigDict(populate_by_name=True)
+
+    {{/needsAlias}}
+    {{#fields}}
+    {{{line}}}
+    {{/fields}}
+    {{^hasFields}}
+    {{^description}}
+    pass
+    {{/description}}
+    {{/hasFields}}
+{{/models}}
+
+
+# 前方参照 (循環参照を含む) を解決する
+{{#allModels}}
+{{classname}}.model_rebuild()
+{{/allModels}}

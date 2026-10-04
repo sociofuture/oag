@@ -1,0 +1,35 @@
+  /**
+   * {{#description}}{{{.}}}{{/description}}{{^description}}Gets or Sets {{enumName}}{{/description}}
+   */
+  public enum {{enumName}} {
+{{#values}}
+    {{name}}({{{literal}}}){{sep}}
+{{/values}}
+
+    private {{javaType}} value;
+
+    {{enumName}}({{javaType}} v) {
+      value = v;
+    }
+
+    @JsonValue
+    public {{javaType}} value() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static {{enumName}} fromValue({{javaType}} v) {
+      for ({{enumName}} b : {{enumName}}.values()) {
+        if (Objects.equals(b.value, v)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + v + "'");
+    }
+  }
+

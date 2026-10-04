@@ -1,0 +1,77 @@
+package {{apiPackage}};
+
+{{#imports}}
+import {{.}};
+{{/imports}}
+
+import {{ws}}.ws.rs.*;
+import {{ws}}.ws.rs.core.Response;
+{{#extraImports}}
+import {{.}};
+{{/extraImports}}
+{{#swagger}}
+import io.swagger.annotations.*;
+{{/swagger}}
+
+
+import java.io.InputStream;
+import java.util.Map;
+import java.util.List;
+import {{ws}}.validation.constraints.*;
+import {{ws}}.validation.Valid;
+
+/**
+* Represents a collection of functions to interact with the API endpoints.
+*/
+@Path("{{commonPath}}")
+{{#swagger}}
+@Api(description = "the {{baseName}} API")
+{{/swagger}}
+{{{generatedAnnotation}}}
+public {{#interfaceOnly}}interface{{/interfaceOnly}}{{^interfaceOnly}}class{{/interfaceOnly}} {{classname}} {
+{{#operations}}
+
+    /**
+     * {{{notes}}}
+     *
+{{#params}}
+     * @param {{name}} {{{description}}}
+{{/params}}
+{{#responses}}
+     * @return {{{message}}}
+{{/responses}}
+     */
+    @{{httpMethod}}
+{{#subPath}}
+    @Path("{{{.}}}")
+{{/subPath}}
+{{#consumes}}
+    @Consumes({ {{{.}}} })
+{{/consumes}}
+{{#produces}}
+    @Produces({ {{{.}}} })
+{{/produces}}
+{{#swagger}}
+    @ApiOperation(value = "{{{summary}}}", notes = "{{{notesJava}}}", tags={ {{{tagsList}}} })
+{{#hasResponses}}
+    @ApiResponses(value = {
+{{#responses}}
+        {{{annotation}}}{{sep}}
+{{/responses}}
+    })
+{{/hasResponses}}
+{{/swagger}}
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
+{{#interfaceOnly}}
+    {{{returnType}}} {{operationId}}({{{paramsDecl}}});
+{{/interfaceOnly}}
+{{^interfaceOnly}}
+    public {{{returnType}}} {{operationId}}({{{paramsDecl}}}) {
+        return Response.ok().entity("magic!").build();
+    }
+{{/interfaceOnly}}
+{{/operations}}
+
+}

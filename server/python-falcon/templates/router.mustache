@@ -1,0 +1,50 @@
+{{{generated}}}
+from __future__ import annotations
+
+import falcon
+
+from . import models
+from .runtime import ApiError, dump, parse, verify
+{{#abcImports}}
+from .apis.{{mod}}_api import {{abc}}
+{{/abcImports}}
+{{#implImports}}
+from {{from}} import {{impl}}
+{{/implImports}}
+{{#anySecured}}
+from {{{authFrom}}} import verify_access_token
+{{/anySecured}}
+
+# 起動時に、実装が ABC を満たしているか確認する (未実装があれば import 時に TypeError)
+{{#abcImports}}
+verify({{abc}}, {{abc}}Impl)
+{{/abcImports}}
+{{#resources}}
+
+
+class {{className}}:
+{{#handlers}}
+    def {{handler}}(self, req: falcon.Request, resp: falcon.Response{{#pathArgs}}, {{.}}{{/pathArgs}}) -> None:
+        impl = {{implName}}()
+{{#extract}}
+        {{{line}}}
+{{/extract}}
+        result = impl.{{methodName}}({{{call}}})
+{{#returnLines}}
+        {{{.}}}
+{{/returnLines}}
+
+{{/handlers}}
+{{/resources}}
+
+def _handle_api_error(req: falcon.Request, resp: falcon.Response, ex: ApiError, params: dict) -> None:
+    resp.status = ex.status
+    resp.media = {"detail": ex.detail}
+
+
+def register_routes(app: falcon.App, prefix: str = {{{prefix}}}) -> None:
+    """全ルートと _impl を falcon.App に登録する。"""
+    app.add_error_handler(ApiError, _handle_api_error)
+{{#resources}}
+    app.add_route(prefix + {{{path}}}, {{className}}())
+{{/resources}}
