@@ -504,7 +504,9 @@ Python 系は、同じ業務仕様と、petstore に認証を足した仕様で�
 
 ## 既知の制限
 
-- `oneOf` / `anyOf` / `discriminator` は未対応です (プロパティのみ生成し、警告します)。
+今後の予定と、各項目の詳細は [TODO.ja.md](TODO.ja.md) にあります。
+
+- `oneOf` / `anyOf` / `discriminator` は未対応です。`oneOf` / `anyOf` だけのスキーマは `Object` / `any` / `Any` になり、`properties` と併用した場合はプロパティだけ生成します (Java は警告を出します)。
 - 外部ファイルへの `$ref` は未対応です。
 - 本家との一致を確認できているのは、上記の業務仕様が使う機能の範囲です。パスパラメータ・クエリ・ヘッダ・enum・description・`useSwaggerAnnotations=true`・`interfaceOnly=false` などは実装済みですが、本家の出力との一致は未確認です。
 - Python サーバーの認証 (`security`) は、スキーマごとの区別をしません。

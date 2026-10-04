@@ -504,7 +504,9 @@ With `examples/petstore.yaml`, included in this repository, you can generate eac
 
 ## Known limitations
 
-- `oneOf` / `anyOf` / `discriminator` are not supported (only the properties are generated, with a warning).
+Planned work and the details of each gap are in [TODO.md](TODO.md).
+
+- `oneOf` / `anyOf` / `discriminator` are not supported. A schema that is only `oneOf` / `anyOf` becomes `Object` / `any` / `Any`; with `properties`, only the properties are generated (Java prints a warning).
 - `$ref` to an external file is not supported.
 - The match with openapi-generator is confirmed only for the features used by the business spec above. Path/query/header parameters, enums, descriptions, `useSwaggerAnnotations=true`, `interfaceOnly=false` and so on are implemented, but their match with openapi-generator's output is unverified.
 - Authentication (`security`) of the Python servers does not distinguish between schemes.
