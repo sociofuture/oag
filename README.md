@@ -13,10 +13,101 @@ OpenAPI (3.x) の YAML から、サーバー/クライアントのスタブを�
    Python 系 (FastAPI / Flask / Falcon) は独自設計です。
 4. **ターゲットの追加・変更が簡単。** `server/<名前>/` や `client/<名前>/` にディレクトリを置くだけです。
 
-## 必要なもの
+## インストール
 
-- Node.js 20 以降 (動作確認は 24)
-- 依存は `yaml` と `mustache` のみ (`npm install` 済み)
+### 必要なもの
+
+- Node.js 20 以降 (動作確認は 24) と npm
+- git
+- 依存パッケージは `yaml` と `mustache` のみです。Java や Python は **oag を動かすだけなら不要** です (生成したコードをビルド・実行するときに、それぞれ必要になります)。
+
+### 手順
+
+```bash
+git clone https://github.com/sociofuture/oag.git
+cd oag
+npm install
+node oag.js list        # ターゲットの一覧が出れば成功
+```
+
+更新するときは、`git pull` のあとに `npm install` をやり直します。
+
+```bash
+cd oag
+git pull
+npm install
+```
+
+### `oag` コマンドとして使う (任意)
+
+`package.json` に `bin` を定義してあるので、`node oag.js` の代わりに `oag` というコマンドで呼べるようにできます。
+
+```bash
+cd oag
+npm link                # clone したディレクトリを、グローバルの oag コマンドとして登録する
+oag list
+oag generate -i openapi/api.yml -g client/typescript-fetch -o ./frontend/src/openapi
+```
+
+- `npm link` は clone したディレクトリへのリンクを張るだけなので、更新は `git pull` と `npm install` だけで反映されます。
+- 解除は `npm unlink -g oag` です。
+- GitHub から直接インストールすることもできます (リポジトリにアクセスできる認証が必要です)。この場合の更新は、同じコマンドをもう一度実行します。
+
+  ```bash
+  npm install -g github:sociofuture/oag
+  ```
+
+以降の説明は `node oag.js ...` の書き方ですが、`oag ...` と書き換えても同じです。
+
+## 最初に試す
+
+同梱のサンプル仕様 (`examples/petstore.yaml`) で、各ターゲットを生成してみます。`out/` は `.gitignore` に入っています。
+
+```bash
+node oag.js generate -i examples/petstore.yaml -g server/jax-rs         -o out/java
+node oag.js generate -i examples/petstore.yaml -g client/typescript-fetch -o out/ts
+node oag.js generate -i examples/petstore.yaml -g server/python-fastapi -o out/py
+```
+
+`N ファイルを生成しました -> <出力先>` と表示されれば成功です。出力先のファイルを開いて、内容を確認してください。
+
+## 自分のプロジェクトから使う
+
+oag は、プロジェクトに組み込むのではなく、clone した場所の `oag.js` を呼び出して使います。プロジェクト側のディレクトリで、`oag.js` のパスを指定して実行します。
+
+```bash
+# 例: oag を ~/tools/oag に clone してある場合
+cd ~/work/my-project
+node ~/tools/oag/oag.js generate -i openapi/api.yml -g client/typescript-fetch -o ./frontend/src/openapi
+```
+
+`npm link` で `oag` コマンドを登録してあれば、パスの指定は要りません (`oag generate -i ...`)。
+
+毎回パスを書くのが面倒なら、プロジェクトの `makefile` などにまとめます。
+
+```makefile
+OAG = node ../oag/oag.js
+
+generate:
+	$(OAG) generate -i openapi/api.yml -g server/jax-rs -o ./backend-java -p interfaceOnly=true,useJakartaEe=true,apiPackage=com.example.api,modelPackage=com.example.model
+	$(OAG) generate -i openapi/api.yml -g client/typescript-fetch -o ./frontend/src/openapi
+```
+
+- 生成物は毎回すべて上書きされます。生成先に手で書いたコードを置かないでください (Python の `_impl` は、生成先の外に置きます)。
+- 仕様を直したら、同じコマンドをもう一度実行するだけで再生成できます。
+- `-o` の出力先が存在しなくても、自動で作られます。
+- 本書のコマンド例は bash の書き方です。PowerShell で複数行に分けるときは、行末の `\` を `` ` `` (バッククォート) にしてください。
+
+### うまくいかないとき
+
+| 症状 | 原因と対処 |
+| --- | --- |
+| `未知のターゲット: ...` と出る | `-g` は `server/jax-rs` のように `種類/名前` で指定します。`node oag.js list` で確認してください |
+| `未知のオプション: ...` と出る | `-p` の名前が違います。`node oag.js help <ターゲット>` で有効なオプションが分かります |
+| `OpenAPI 3.x のみ対応しています` | Swagger 2.0 (`swagger: "2.0"`) は未対応です。OpenAPI 3 に変換してください |
+| `外部ファイルへの $ref は未対応です` | 仕様を 1 ファイルにまとめてください (`$ref` は `#/...` のみ) |
+| `operationId が重複しています` (Python) | 操作ごとに一意の `operationId` を付けてください |
+| `SyntaxError` などで起動しない | Node.js が古い可能性があります。`node -v` で 20 以降か確認してください |
 
 ## 使い方
 
