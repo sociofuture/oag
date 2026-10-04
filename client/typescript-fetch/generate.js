@@ -1,8 +1,12 @@
 // client/typescript-fetch: OpenAPI -> TypeScript fetch クライアント (openapi-generator typescript-fetch 互換の出力)
 import { createTs } from './ts.js';
+import { t } from '../../lib/i18n.js';
 
 export const meta = {
-  description: 'TypeScript fetch client (openapi-generator 7.12.0 の typescript-fetch と同じ出力)',
+  description: {
+    en: 'TypeScript fetch client (same output as the typescript-fetch of openapi-generator 7.12.0)',
+    ja: 'TypeScript fetch クライアント (openapi-generator 7.12.0 の typescript-fetch と同じ出力)',
+  },
   options: {},
 };
 
@@ -53,7 +57,7 @@ export default async function generate({ spec, operations, render, write: rawWri
   try {
     basePath = server.startsWith('/') ? server : new URL(server).href;
   } catch {
-    log(`servers[0].url を解釈できません: ${server}`);
+    log(t('servers_url_invalid', { server }));
   }
   write('runtime.ts', render('runtime', { header, basePath: basePath.replace(/\/+$/, '') || '' }));
   write('index.ts', render('index', { exports: ['./runtime', './apis/index', './models/index'] }));

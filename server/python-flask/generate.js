@@ -3,7 +3,10 @@
 import { TEMPLATE_DIRS, commonOptions, guardWrite, pathWithPyNames, routerPrefix, writeBase } from '../_python/common.js';
 
 export const meta = {
-  description: 'Python Flask server (操作ごとの ABC + router.py の Blueprint。実装は手書きの _impl に置く)',
+  description: {
+    en: 'Python Flask server (one ABC per operation + a Blueprint in router.py; implementations go in a hand-written _impl)',
+    ja: 'Python Flask サーバー (操作ごとの ABC + router.py の Blueprint。実装は手書きの _impl に置く)',
+  },
   templateDirs: TEMPLATE_DIRS,
   options: { ...commonOptions },
 };

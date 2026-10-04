@@ -7,18 +7,10 @@ import { loadSpec } from './lib/spec.js';
 import { collectOperations } from './lib/operations.js';
 import { hoistInlineSchemas } from './lib/inline.js';
 import { createRenderer } from './lib/template.js';
+import { detectLang, setLang, t, tr } from './lib/i18n.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const KINDS = ['server', 'client'];
-
-const USAGE = `使い方:
-  node oag.js list
-  node oag.js generate -i <spec.yaml> -g <kind/name> -o <outDir> [-p key=value,key=value] [-t <templateDir>]
-
-  -g  ターゲット (例: server/jax-rs)
-  -p  ターゲット固有オプション (カンマ区切り)。'node oag.js help <target>' で一覧
-  -t  テンプレート上書きディレクトリ (同名の .mustache を優先して使う)
-`;
 
 function listTargets() {
   const out = [];
@@ -34,7 +26,7 @@ function listTargets() {
 
 async function loadTarget(id) {
   if (!listTargets().includes(id)) {
-    throw new Error(`未知のターゲット: ${id}\n利用可能: ${listTargets().join(', ') || '(なし)'}`);
+    throw new Error(t('unknown_target', { id, available: listTargets().join(', ') || t('none') }));
   }
   const dir = path.join(ROOT, ...id.split('/'));
   const mod = await import(pathToFileURL(path.join(dir, 'generate.js')).href);
@@ -52,7 +44,7 @@ function parseOptions(str, defs = {}) {
   const opts = {};
   for (const [k, d] of Object.entries(defs)) opts[k] = d.default;
   for (const [k, v] of Object.entries(raw)) {
-    if (!(k in defs)) throw new Error(`未知のオプション: ${k} (有効: ${Object.keys(defs).join(', ')})`);
+    if (!(k in defs)) throw new Error(t('unknown_option', { name: k, valid: Object.keys(defs).join(', ') }));
     opts[k] = typeof defs[k].default === 'boolean' ? v === 'true' : v;
   }
   return opts;
@@ -63,7 +55,7 @@ function createWriter(outDir) {
   const root = path.resolve(outDir);
   const write = (rel, content) => {
     const file = path.resolve(root, rel);
-    if (!file.startsWith(root + path.sep)) throw new Error(`出力先の外には書けません: ${rel}`);
+    if (!file.startsWith(root + path.sep)) throw new Error(t('outside_output', { path: rel }));
     const text = content.replace(/\r\n/g, '\n');
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, text);
@@ -81,25 +73,32 @@ async function main() {
       output: { type: 'string', short: 'o' },
       props: { type: 'string', short: 'p' },
       'template-dir': { type: 'string', short: 't' },
+      lang: { type: 'string' },
     },
   });
+  // 言語: --lang > 環境 (OAG_LANG、ロケール) > en。生成物の内容には影響しない
+  setLang(detectLang());
+  if (values.lang) setLang(values.lang);
+  const usage = t('usage');
   const [cmd = 'help', arg] = positionals;
 
   if (cmd === 'list') { console.log(listTargets().join('\n')); return; }
   if (cmd === 'help') {
-    console.log(USAGE);
+    console.log(usage);
     if (arg) {
       const { meta } = await loadTarget(arg);
-      console.log(`${arg}: ${meta.description ?? ''}\nオプション:`);
-      for (const [k, d] of Object.entries(meta.options ?? {})) {
-        console.log(`  ${k} (既定: ${JSON.stringify(d.default)}) ${d.description ?? ''}`);
+      const opts = Object.entries(meta.options ?? {});
+      console.log(`${arg}: ${tr(meta.description)}\n${opts.length ? t('help_options') : t('help_no_options')}`);
+      for (const [k, d] of opts) {
+        console.log(`  ${k} (${t('help_default')}: ${JSON.stringify(d.default)}) ${tr(d.description)}`);
       }
     }
     return;
   }
-  if (cmd !== 'generate') throw new Error(`未知のコマンド: ${cmd}\n${USAGE}`);
-  for (const k of ['input', 'generator', 'output']) {
-    if (!values[k]) throw new Error(`--${k} が必要です\n${USAGE}`);
+  if (cmd !== 'generate') throw new Error(t('unknown_command', { cmd, usage }));
+  const flags = { input: 'i', generator: 'g', output: 'o' };
+  for (const [k, short] of Object.entries(flags)) {
+    if (!values[k]) throw new Error(t('missing_arg', { name: short, usage }));
   }
 
   const target = await loadTarget(values.generator);
@@ -121,7 +120,7 @@ async function main() {
     write: writer.write,
     log: (m) => console.warn(`[${values.generator}] ${m}`),
   });
-  console.log(`${writer.written.size} ファイルを生成しました -> ${writer.root}`);
+  console.log(t('generated', { count: writer.written.size, dir: writer.root }));
 }
 
 main().catch((e) => { console.error(e.message); process.exit(1); });

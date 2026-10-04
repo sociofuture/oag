@@ -2,9 +2,13 @@
 // models.py / ABC / 方針は server/_python/common.js を参照。ここは router.py と runtime.py。
 // 対応: Falcon 3 以降 (resp.status に int を使う)。multipart のファイル受信は未対応。
 import { TEMPLATE_DIRS, commonOptions, guardWrite, pathWithPyNames, routerPrefix, writeBase } from '../_python/common.js';
+import { t } from '../../lib/i18n.js';
 
 export const meta = {
-  description: 'Python Falcon server (操作ごとの ABC + router.py の register_routes。実装は手書きの _impl に置く)',
+  description: {
+    en: 'Python Falcon server (one ABC per operation + register_routes in router.py; implementations go in a hand-written _impl)',
+    ja: 'Python Falcon サーバー (操作ごとの ABC + router.py の register_routes。実装は手書きの _impl に置く)',
+  },
   templateDirs: TEMPLATE_DIRS,
   options: { ...commonOptions },
 };
@@ -22,7 +26,7 @@ function extractLine(p, log) {
     case 'cookie': src = `req.cookies.get(${n})`; break;
     case 'form': src = `(req.get_media(default_when_empty=None) or {}).get(${n})`; break;
     case 'file':
-      log(`ファイルパラメータ ${p.rawName} は未対応です (None が渡されます)`);
+      log(t('file_param_unsupported', { name: p.rawName }));
       return `${p.pyName} = None  # multipart のファイル受信は未対応`;
     default: return `${p.pyName} = parse(${p.rtype}, req.get_media(default_when_empty=None), ${n}, "body"${opt})`;
   }

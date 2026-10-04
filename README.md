@@ -1,36 +1,38 @@
 # oag
 
-OpenAPI (3.x) の YAML から、サーバー/クライアントのスタブを生成するツールです。
-`openapi-generator-cli` の置き換えを目的にしています。Java は不要で、Node.js だけで動きます。
+**English** | [日本語](README.ja.md)
 
-## 基本方針
+A tool that generates server/client stubs from an OpenAPI (3.x) YAML file.
+It is meant as a replacement for `openapi-generator-cli`. It needs no Java — Node.js is enough.
 
-1. **生成したファイルは、人間が絶対に変更しない。**
-   変更したいときは OpenAPI 仕様を直して再生成します。手書きのコードは生成物とは別の場所 (`_impl` など) に置きます。
-2. **再生成が簡単に行える。**
-   生成は毎回、対象ファイルをすべて上書きします。前回の生成物を消す処理はありません (仕様から消えたスキーマのファイルは残ります。必要なら手で消してください)。
-3. **Java JAX-RS と TypeScript fetch は、openapi-generator 7.12.0 と同じ出力。**
-   Python 系 (FastAPI / Flask / Falcon) は独自設計です。
-4. **ターゲットの追加・変更が簡単。** `server/<名前>/` や `client/<名前>/` にディレクトリを置くだけです。
+## Principles
 
-## インストール
+1. **Generated files are never edited by hand.**
+   To change something, fix the OpenAPI spec and regenerate. Hand-written code lives apart from the generated code (for example in `_impl`).
+2. **Regeneration is easy.**
+   Every run overwrites all target files. Nothing from a previous run is deleted (files for schemas removed from the spec stay; delete them by hand if needed).
+3. **Java JAX-RS and TypeScript fetch produce the same output as openapi-generator 7.12.0.**
+   The Python targets (FastAPI / Flask / Falcon) have their own design.
+4. **Targets are easy to add and change.** Just put a directory under `server/<name>/` or `client/<name>/`.
 
-### 必要なもの
+## Installation
 
-- Node.js 20 以降 (動作確認は 24) と npm
+### Requirements
+
+- Node.js 20 or later (tested on 24) and npm
 - git
-- 依存パッケージは `yaml` と `mustache` のみです。Java や Python は **oag を動かすだけなら不要** です (生成したコードをビルド・実行するときに、それぞれ必要になります)。
+- The only dependencies are `yaml` and `mustache`. Java and Python are **not needed just to run oag** (you need them only to build/run the generated code).
 
-### 手順
+### Steps
 
 ```bash
 git clone https://github.com/sociofuture/oag.git
 cd oag
 npm install
-node oag.js list        # ターゲットの一覧が出れば成功
+node oag.js list        # success if the list of targets is printed
 ```
 
-更新するときは、`git pull` のあとに `npm install` をやり直します。
+To update, run `git pull` and then `npm install` again.
 
 ```bash
 cd oag
@@ -38,30 +40,30 @@ git pull
 npm install
 ```
 
-### `oag` コマンドとして使う (任意)
+### Using it as the `oag` command (optional)
 
-`package.json` に `bin` を定義してあるので、`node oag.js` の代わりに `oag` というコマンドで呼べるようにできます。
+`package.json` defines `bin`, so you can call `oag` instead of `node oag.js`.
 
 ```bash
 cd oag
-npm link                # clone したディレクトリを、グローバルの oag コマンドとして登録する
+npm link                # registers the cloned directory as the global `oag` command
 oag list
 oag generate -i openapi/api.yml -g client/typescript-fetch -o ./frontend/src/openapi
 ```
 
-- `npm link` は clone したディレクトリへのリンクを張るだけなので、更新は `git pull` と `npm install` だけで反映されます。
-- 解除は `npm unlink -g oag` です。
-- GitHub から直接インストールすることもできます (リポジトリにアクセスできる認証が必要です)。この場合の更新は、同じコマンドをもう一度実行します。
+- `npm link` only creates a link to the cloned directory, so updates take effect with just `git pull` and `npm install`.
+- To remove it, run `npm unlink -g oag`.
+- You can also install directly from GitHub (this needs credentials that can access the repository). To update, run the same command again.
 
   ```bash
   npm install -g github:sociofuture/oag
   ```
 
-以降の説明は `node oag.js ...` の書き方ですが、`oag ...` と書き換えても同じです。
+The rest of this document writes commands as `node oag.js ...`; `oag ...` works the same way.
 
-## 最初に試す
+## Try it first
 
-同梱のサンプル仕様 (`examples/petstore.yaml`) で、各ターゲットを生成してみます。`out/` は `.gitignore` に入っています。
+Generate each target from the bundled sample spec (`examples/petstore.yaml`). `out/` is in `.gitignore`.
 
 ```bash
 node oag.js generate -i examples/petstore.yaml -g server/jax-rs         -o out/java
@@ -69,21 +71,21 @@ node oag.js generate -i examples/petstore.yaml -g client/typescript-fetch -o out
 node oag.js generate -i examples/petstore.yaml -g server/python-fastapi -o out/py
 ```
 
-`N ファイルを生成しました -> <出力先>` と表示されれば成功です。出力先のファイルを開いて、内容を確認してください。
+If `N file(s) generated -> <output dir>` is printed, it worked. Open the files in the output directory to check them.
 
-## 自分のプロジェクトから使う
+## Using it from your own project
 
-oag は、プロジェクトに組み込むのではなく、clone した場所の `oag.js` を呼び出して使います。プロジェクト側のディレクトリで、`oag.js` のパスを指定して実行します。
+oag is not embedded in your project; you call the `oag.js` of the directory you cloned. Run it from your project's directory, giving the path to `oag.js`.
 
 ```bash
-# 例: oag を ~/tools/oag に clone してある場合
+# Example: oag is cloned at ~/tools/oag
 cd ~/work/my-project
 node ~/tools/oag/oag.js generate -i openapi/api.yml -g client/typescript-fetch -o ./frontend/src/openapi
 ```
 
-`npm link` で `oag` コマンドを登録してあれば、パスの指定は要りません (`oag generate -i ...`)。
+If you registered the `oag` command with `npm link`, no path is needed (`oag generate -i ...`).
 
-毎回パスを書くのが面倒なら、プロジェクトの `makefile` などにまとめます。
+To avoid typing the path every time, put the commands in your project's `makefile` or similar.
 
 ```makefile
 OAG = node ../oag/oag.js
@@ -93,210 +95,229 @@ generate:
 	$(OAG) generate -i openapi/api.yml -g client/typescript-fetch -o ./frontend/src/openapi
 ```
 
-- 生成物は毎回すべて上書きされます。生成先に手で書いたコードを置かないでください (Python の `_impl` は、生成先の外に置きます)。
-- 仕様を直したら、同じコマンドをもう一度実行するだけで再生成できます。
-- `-o` の出力先が存在しなくても、自動で作られます。
-- 本書のコマンド例は bash の書き方です。PowerShell で複数行に分けるときは、行末の `\` を `` ` `` (バッククォート) にしてください。
+- Generated files are overwritten every time. Do not put hand-written code in the output directory (for Python, keep `_impl` outside it).
+- After changing the spec, just run the same command again to regenerate.
+- The output directory is created automatically if it does not exist.
+- The command examples use bash syntax. In PowerShell, when splitting a command over several lines, replace the trailing `\` with `` ` `` (backtick).
 
-### うまくいかないとき
+### Troubleshooting
 
-| 症状 | 原因と対処 |
+| Symptom | Cause and fix |
 | --- | --- |
-| `未知のターゲット: ...` と出る | `-g` は `server/jax-rs` のように `種類/名前` で指定します。`node oag.js list` で確認してください |
-| `未知のオプション: ...` と出る | `-p` の名前が違います。`node oag.js help <ターゲット>` で有効なオプションが分かります |
-| `OpenAPI 3.x のみ対応しています` | Swagger 2.0 (`swagger: "2.0"`) は未対応です。OpenAPI 3 に変換してください |
-| `外部ファイルへの $ref は未対応です` | 仕様を 1 ファイルにまとめてください (`$ref` は `#/...` のみ) |
-| `operationId が重複しています` (Python) | 操作ごとに一意の `operationId` を付けてください |
-| `SyntaxError` などで起動しない | Node.js が古い可能性があります。`node -v` で 20 以降か確認してください |
+| `Unknown target: ...` | `-g` takes `kind/name`, such as `server/jax-rs`. Check with `node oag.js list` |
+| `Unknown option: ...` | The `-p` name is wrong. `node oag.js help <target>` lists the valid options |
+| `only OpenAPI 3.x is supported` | Swagger 2.0 (`swagger: "2.0"`) is not supported. Convert it to OpenAPI 3 |
+| `A $ref to an external file is not supported` | Put the spec in a single file (only `#/...` references are supported) |
+| `Duplicate operationId` (Python targets) | Give each operation a unique `operationId` |
+| Fails to start with `SyntaxError` etc. | Node.js may be too old. Check that `node -v` is 20 or later |
 
-## 使い方
+## Usage
 
 ```bash
-node oag.js list                                # 利用できるターゲット
-node oag.js help <ターゲット>                    # ターゲットのオプション一覧
-node oag.js generate -i <spec.yaml> -g <ターゲット> -o <出力先> [-p k=v,k=v] [-t <テンプレートdir>]
+node oag.js list                                # available targets
+node oag.js help <target>                       # options of a target
+node oag.js generate -i <spec.yaml> -g <target> -o <output dir> [-p k=v,k=v] [-t <template dir>]
 ```
 
-| 引数 | 内容 |
+| Argument | Meaning |
 | --- | --- |
-| `-i` | OpenAPI 仕様 (YAML / JSON)。OpenAPI 3.x のみ対応 |
-| `-g` | ターゲット。`server/jax-rs` のようにディレクトリ名で指定 |
-| `-o` | 出力先ディレクトリ |
-| `-p` | ターゲット固有のオプション (カンマ区切りの `キー=値`)。openapi-generator の `--additional-properties` に相当 |
-| `-t` | テンプレートの上書きディレクトリ。同名の `.mustache` があればそちらを優先して使う |
+| `-i` | OpenAPI spec (YAML / JSON). OpenAPI 3.x only |
+| `-g` | Target, given as the directory name, e.g. `server/jax-rs` |
+| `-o` | Output directory |
+| `-p` | Target-specific options (comma-separated `key=value`). Corresponds to `--additional-properties` of openapi-generator |
+| `-t` | Template override directory. A `.mustache` file with the same name takes precedence |
+| `--lang` | Language of the messages: `en` or `ja` (see below) |
 
-### 利用できるターゲット
+### Language of the messages
 
-| ターゲット | 内容 | 出力の基準 |
-| --- | --- | --- |
-| `server/jax-rs` | Java JAX-RS サーバー (jaxrs-spec 互換) | openapi-generator 7.12.0 と同一 |
-| `client/typescript-fetch` | TypeScript fetch クライアント | openapi-generator 7.12.0 と同一 |
-| `server/python-fastapi` | Python FastAPI サーバー | 独自設計 |
-| `server/python-flask` | Python Flask サーバー | 独自設計 |
-| `server/python-falcon` | Python Falcon サーバー | 独自設計 |
+The messages the command prints (usage, errors, warnings, the result line, and the descriptions shown by `help <target>`) are available in English (`en`) and Japanese (`ja`). The language is chosen in this order:
 
-### 生成コマンドの例
+1. `--lang en` / `--lang ja`
+2. The environment variable `OAG_LANG` (`en` or `ja`)
+3. The locale: `LC_ALL`, `LC_MESSAGES`, `LANG`, and then the OS locale. A language other than `ja` gives `en`
+4. `en`
 
 ```bash
-# Java JAX-RS (openapi-generator -g jaxrs-spec と同じオプション)
+node oag.js generate -i openapi/api.yml -g server/jax-rs -o ./backend-java --lang ja
+OAG_LANG=ja node oag.js help server/jax-rs       # bash
+$env:OAG_LANG = "ja"                             # PowerShell (for the current session)
+```
+
+The language only affects what the command prints. **The generated files are identical whichever language is selected.**
+
+### Available targets
+
+| Target | Description | Output reference |
+| --- | --- | --- |
+| `server/jax-rs` | Java JAX-RS server (jaxrs-spec compatible) | Identical to openapi-generator 7.12.0 |
+| `client/typescript-fetch` | TypeScript fetch client | Identical to openapi-generator 7.12.0 |
+| `server/python-fastapi` | Python FastAPI server | Own design |
+| `server/python-flask` | Python Flask server | Own design |
+| `server/python-falcon` | Python Falcon server | Own design |
+
+### Command examples
+
+```bash
+# Java JAX-RS (same options as openapi-generator -g jaxrs-spec)
 node oag.js generate -i openapi/api.yml -g server/jax-rs -o ./backend-java \
   -p dateLibrary=java8,interfaceOnly=true,useSwaggerAnnotations=false,useJakartaEe=true,generatePom=false,apiPackage=com.example.api,modelPackage=com.example.model
 
-# TypeScript fetch (オプションなし)
+# TypeScript fetch (no options)
 node oag.js generate -i openapi/api.yml -g client/typescript-fetch -o ./frontend/src/openapi
 
-# Python FastAPI (生成物は app/generated に出し、手書きの app/_impl を隣に置く)
+# Python FastAPI (output to app/generated, with a hand-written app/_impl next to it)
 node oag.js generate -i openapi/api.yml -g server/python-fastapi -o ./backend-py/app/generated
 ```
 
-## ディレクトリ構成
+## Directory layout
 
 ```
-oag.js                    CLI。ターゲットの解決・出力の書き込み
-lib/                       ターゲットに依存しない共通部分
-  spec.js                    仕様の読み込み、$ref の解決
-  operations.js              paths から operation を平坦化
-  inline.js                  インラインのオブジェクトスキーマを components に昇格
-  schema.js                  スキーマの種類判定 (enum/model/alias)、allOf の平坦化
-  template.js                mustache の描画器
-  naming.js                  camelize / snake など
-  javacompat.js              Java の HashSet の反復順を再現 (TypeScript の import 順に必要)
+oag.js                     CLI. Resolves the target and writes the output
+lib/                       Parts shared by all targets
+  spec.js                    Loads the spec, resolves $ref
+  operations.js              Flattens paths into operations
+  inline.js                  Promotes inline object schemas to components
+  schema.js                  Classifies schemas (enum/model/alias), flattens allOf
+  template.js                mustache renderer
+  naming.js                  camelize / snake, etc.
+  i18n.js                    Messages of the CLI (en / ja) and language detection
+  javacompat.js              Reproduces the iteration order of Java's HashSet (needed for TypeScript import order)
 server/
   jax-rs/                    generate.js, java.js, templates/
-  _python/                   Python 3 ターゲット共通 (py.js, common.js, templates/)
+  _python/                   Shared by the Python targets (py.js, common.js, templates/)
   python-fastapi/            generate.js, templates/router.mustache
   python-flask/              generate.js, templates/router.mustache
   python-falcon/             generate.js, templates/router.mustache
 client/
   typescript-fetch/          generate.js, ts.js, templates/
-tools/cmp.mjs              本家の出力との比較 (開発用)
-examples/                  サンプル仕様 (petstore.yaml)
+tools/cmp.mjs              Comparison with openapi-generator output (for development)
+examples/                  Sample spec (petstore.yaml)
 ```
 
-`server/_python/` のように `generate.js` を持たないディレクトリは、ターゲットとして扱われません。
+A directory without `generate.js`, such as `server/_python/`, is not treated as a target.
 
-## 共通の処理
+## Common processing
 
-どのターゲットも、生成の前に次の処理を通ります。
+Every target goes through the following before generation.
 
-- **`$ref` の解決**: ローカル参照 (`#/...`) のみ。外部ファイルへの参照は未対応で、エラーになります。
-- **インラインスキーマの昇格** (openapi-generator の InlineModelResolver 相当): 次の名前で `components.schemas` に追加し、`$ref` に置き換えます。
+- **`$ref` resolution**: local references (`#/...`) only. References to external files are not supported and cause an error.
+- **Promoting inline schemas** (equivalent to openapi-generator's InlineModelResolver): they are added to `components.schemas` under the names below and replaced with a `$ref`.
 
-  | 場所 | スキーマ名 | 例 |
+  | Where | Schema name | Example |
   | --- | --- | --- |
   | requestBody | `<operationId>_request` | `AddPet` → `AddPetRequest` |
   | response | `<operationId>_<code>_response` | |
-  | プロパティ | `<親スキーマ名>_<プロパティ名>` | `Pet_owner` → `PetOwner` |
-  | 配列の要素 | `<親スキーマ名>_<プロパティ名>_inner` | |
+  | property | `<parent schema>_<property>` | `Pet_owner` → `PetOwner` |
+  | array item | `<parent schema>_<property>_inner` | |
 
-  フォーム (`x-www-form-urlencoded` / `multipart/form-data`) のボディは昇格せず、個別のパラメータに展開します。
-- **`allOf`**: 継承にせず、プロパティを平坦化して 1 つのモデルにします。`required` は和集合です。
-- **`operationId` が無い場合**: `<パス>` + `<メソッド>` から作ります (`/pet/{petId}` の get → `petPetIdGet`)。
+  Form bodies (`x-www-form-urlencoded` / `multipart/form-data`) are not promoted; they are expanded into individual parameters.
+- **`allOf`**: no inheritance; the properties are flattened into a single model. `required` is the union.
+- **Missing `operationId`**: built from `<path>` + `<method>` (get on `/pet/{petId}` → `petPetIdGet`).
 
 ---
 
 ## server/jax-rs
 
-Java JAX-RS (jaxrs-spec) のサーバースタブです。openapi-generator 7.12.0 の出力と、実際の業務仕様 (非公開) で **全ファイルが一致** することを確認しています (比較は `@Generated` の日時のみ無視)。確認の範囲は [動作確認](#動作確認-開発用) を参照してください。
+A Java JAX-RS (jaxrs-spec) server stub. It has been confirmed that the output is **identical for every file** to openapi-generator 7.12.0 on a real business spec (not public); the comparison ignores only the `@Generated` timestamp. See [Verification](#verification-for-development) for the scope of that confirmation.
 
-### オプション (`-p`)
+### Options (`-p`)
 
-| オプション | 既定値 | 内容 |
+| Option | Default | Meaning |
 | --- | --- | --- |
-| `apiPackage` | `org.openapitools.api` | API クラスのパッケージ |
-| `modelPackage` | `org.openapitools.model` | モデルクラスのパッケージ |
-| `invokerPackage` | (apiPackage の親) | `RestApplication` / `RestResourceRoot` のパッケージ |
-| `sourceFolder` | `src/gen/java` | Java ソースの出力先 |
-| `dateLibrary` | `java8` | `java8` (`OffsetDateTime` / `LocalDate`) または `legacy` (`java.util.Date`) |
-| `useJakartaEe` | `false` | `javax.*` の代わりに `jakarta.*` を使う |
-| `useSwaggerAnnotations` | `true` | `io.swagger.annotations` を付ける |
-| `useTags` | `false` | API クラスをタグで分ける。`false` ならパスの先頭セグメントで分ける |
-| `interfaceOnly` | `false` | API を interface として生成する |
-| `generatePom` | `true` | `pom.xml` を出力する |
-| `groupId` / `artifactId` / `artifactVersion` | `org.openapitools` / `openapi-jaxrs-server` / `1.0.0` | `pom.xml` の値 |
-| `hideGenerationTimestamp` | `false` | `@Generated` の `date` を出力しない |
+| `apiPackage` | `org.openapitools.api` | Package of the API classes |
+| `modelPackage` | `org.openapitools.model` | Package of the model classes |
+| `invokerPackage` | (parent of apiPackage) | Package of `RestApplication` / `RestResourceRoot` |
+| `sourceFolder` | `src/gen/java` | Output folder of the Java sources |
+| `dateLibrary` | `java8` | `java8` (`OffsetDateTime` / `LocalDate`) or `legacy` (`java.util.Date`) |
+| `useJakartaEe` | `false` | Use `jakarta.*` instead of `javax.*` |
+| `useSwaggerAnnotations` | `true` | Add `io.swagger.annotations` |
+| `useTags` | `false` | Split API classes by tag. When `false`, split by the first path segment |
+| `interfaceOnly` | `false` | Generate the API as an interface |
+| `generatePom` | `true` | Write `pom.xml` |
+| `groupId` / `artifactId` / `artifactVersion` | `org.openapitools` / `openapi-jaxrs-server` / `1.0.0` | Values in `pom.xml` |
+| `hideGenerationTimestamp` | `false` | Omit the `date` in `@Generated` |
 
-### 出力
+### Output
 
-- 既定ではパスの先頭セグメントごとに API クラスができます (`/pet` → `PetApi`、`/health-check` → `HealthCheckApi`)。
-- 戻り値はスキーマの型です (なければ `void`)。`interfaceOnly=false` のときだけ `Response` を返す本体 (`"magic!"`) が出ます。
-- `RestApplication` と `RestResourceRoot` は `interfaceOnly` でも出力します。`@ApplicationPath` は `servers[0].url` のパスです。
-- `@Generated` には `Generator version: 7.12.0` と実行時刻が入ります。本家と同一にするための固定文字列で、このツールが本家であることを意味しません。
+- By default one API class is created per first path segment (`/pet` → `PetApi`, `/health-check` → `HealthCheckApi`).
+- The return type is the schema type (`void` if none). Only with `interfaceOnly=false` is a body that returns a `Response` (`"magic!"`) emitted.
+- `RestApplication` and `RestResourceRoot` are written even with `interfaceOnly`. `@ApplicationPath` is the path of `servers[0].url`.
+- `@Generated` contains `Generator version: 7.12.0` and the run time. This is a fixed string used to match openapi-generator exactly; it does not mean this tool is openapi-generator.
 
 ---
 
 ## client/typescript-fetch
 
-TypeScript の fetch クライアントです。openapi-generator 7.12.0 の `typescript-fetch` (オプションなし) の出力と、実際の業務仕様 (非公開) で **全ファイルが一致** することを確認しています。確認の範囲は [動作確認](#動作確認-開発用) を参照してください。
+A TypeScript fetch client. It has been confirmed that the output is **identical for every file** to `typescript-fetch` of openapi-generator 7.12.0 (no options) on a real business spec (not public). See [Verification](#verification-for-development) for the scope of that confirmation.
 
-オプションはありません。
+There are no options.
 
-### 出力
+### Output
 
 ```
-apis/<タグ>Api.ts       タグごとの API クラス。操作は operationId 順
+apis/<Tag>Api.ts        One API class per tag. Operations are in operationId order
 apis/index.ts
-models/<モデル>.ts       interface と FromJSON / ToJSON 関数
+models/<Model>.ts       Interface plus FromJSON / ToJSON functions
 models/index.ts
-runtime.ts              BASE_PATH は servers[0].url
+runtime.ts              BASE_PATH is servers[0].url
 index.ts
 .openapi-generator-ignore
-.openapi-generator/FILES      生成したファイルの一覧
-.openapi-generator/VERSION    7.12.0 固定
+.openapi-generator/FILES      List of generated files
+.openapi-generator/VERSION    Fixed to 7.12.0
 ```
 
-- プロパティ名は lowerCamelCase、JSON のキーは元の名前のままです (`PetName` → `petName`)。
-- 日付 (`date` / `date-time`) は `Date` 型で、`date` の `toJSON` は `toISOString().substring(0,10)` です。
-- 必須で `nullable` のプロパティの型は `T | null` になります (JSDoc の `@type` には付きません)。配列の要素が `nullable` なら `Array<T | null>` です。
-- モデルの import の並びは、本家の Java `HashSet` の反復順 (名前順でも出現順でもない) を再現しています。
-- `.openapi-generator/` の 3 ファイルは、再生成で git の差分にならないよう、本家と同じ内容を出力します。
+- Property names are lowerCamelCase; JSON keys keep their original names (`PetName` → `petName`).
+- Dates (`date` / `date-time`) are `Date`; `toJSON` of `date` is `toISOString().substring(0,10)`.
+- A required, `nullable` property has the type `T | null` (not in the JSDoc `@type`). If an array item is `nullable`, it is `Array<T | null>`.
+- The order of model imports reproduces the iteration order of Java's `HashSet` (neither alphabetical nor order of appearance).
+- The three files in `.openapi-generator/` are written with the same content as openapi-generator, so regeneration does not show up as a git diff.
 
 ---
 
-## Python サーバー (FastAPI / Flask / Falcon)
+## Python servers (FastAPI / Flask / Falcon)
 
-3 つのターゲットは **同じ設計** で、違うのは `router.py` (と Flask/Falcon の `runtime.py`) だけです。
-`openapi-generator` の Python サーバーは、生成されたファイルに実装を書き足す方式のため再生成できません。このツールは **生成物と手書きを分離** します。
+The three targets share **the same design**; only `router.py` (and `runtime.py` for Flask/Falcon) differ.
+The Python servers of `openapi-generator` have you add the implementation to generated files, so they cannot be regenerated. This tool **separates generated code from hand-written code**.
 
-### 構成
+### Layout
 
 ```
-app/                      ← 手書きの領域 (Python パッケージ)
+app/                      ← hand-written area (a Python package)
   __init__.py
-  _impl/                  ← 手書き専用。oag は生成しない・上書きしない・削除しない
+  _impl/                  ← hand-written only. oag never generates, overwrites or deletes here
     __init__.py
-    auth.py                 AuthInfo と verify_access_token (認証が必要な操作がある場合)
+    auth.py                 AuthInfo and verify_access_token (when some operations need authentication)
     add_pet.py              class AddPetApiImpl(AddPetApi)
-  generated/              ← -o の出力先。丸ごと消して再生成してよい
+  generated/              ← the -o output directory. Safe to delete entirely and regenerate
     __init__.py
-    models.py               pydantic v2 のモデル (enum を含む)
-    router.py               ルート定義。_impl を登録する
-    runtime.py              (Flask / Falcon のみ) 検証・変換のヘルパ
+    models.py               pydantic v2 models (including enums)
+    router.py               Route definitions. Registers _impl
+    runtime.py              (Flask / Falcon only) validation / conversion helpers
     apis/
       __init__.py
-      add_pet_api.py        操作ごとの ABC
+      add_pet_api.py        One ABC per operation
 ```
 
-- `generated/` は `app/` の下に置き、`app.generated` として import できる形にしてください (`router.py` が `from .._impl.xxx import ...` と親パッケージを参照します)。
-- `python generated/router.py` のような直接実行はできません。
-- `makefile` で出力先を `rm -rf` しても、`_impl` は出力先の外なので消えません。
+- Put `generated/` under `app/` so that it can be imported as `app.generated` (`router.py` refers to `from .._impl.xxx import ...`, i.e. the parent package).
+- It cannot be run directly, e.g. `python generated/router.py`.
+- Even if a `makefile` runs `rm -rf` on the output directory, `_impl` survives because it is outside it.
 
-### 規約 (名前は固定)
+### Conventions (names are fixed)
 
-| 項目 | 規約 | 例 |
+| Item | Convention | Example |
 | --- | --- | --- |
-| ABC のクラス | `<OperationId>Api` | `AddPetApi` |
-| ABC のファイル | `apis/<operationId の snake_case>_api.py` | `apis/add_pet_api.py` |
-| 実装のクラス | `<ABC 名>Impl` | `AddPetApiImpl` |
-| 実装のファイル | `_impl/<operationId の snake_case>.py` | `_impl/add_pet.py` |
-| メソッド名 | operationId の snake_case | `add_pet` |
-| 認証 | `_impl/auth.py` の `AuthInfo` と `verify_access_token` | 下記 |
+| ABC class | `<OperationId>Api` | `AddPetApi` |
+| ABC file | `apis/<operationId in snake_case>_api.py` | `apis/add_pet_api.py` |
+| Implementation class | `<ABC name>Impl` | `AddPetApiImpl` |
+| Implementation file | `_impl/<operationId in snake_case>.py` | `_impl/add_pet.py` |
+| Method name | operationId in snake_case | `add_pet` |
+| Authentication | `AuthInfo` and `verify_access_token` in `_impl/auth.py` | see below |
 
-`operationId` が重複していると、生成時にエラーになります。
+Duplicate `operationId`s cause an error at generation time.
 
-### 実装の書き方
+### Writing an implementation
 
-生成される ABC (同期の `def`):
+The generated ABC (synchronous `def`):
 
 ```python
 class AddPetApi(ABC):
@@ -304,7 +325,7 @@ class AddPetApi(ABC):
     def add_pet(self, auth: AuthInfo, pet: Pet) -> Pet: ...
 ```
 
-手書きの実装 (`_impl/add_pet.py`):
+The hand-written implementation (`_impl/add_pet.py`):
 
 ```python
 from ..generated.apis.add_pet_api import AddPetApi
@@ -318,16 +339,16 @@ class AddPetApiImpl(AddPetApi):
         return pet.model_copy(update={"id": 1})
 ```
 
-- メソッドの引数は、パス・クエリ・ヘッダ・クッキー・フォーム・ボディの順ではなく、**必須 → 任意** の順です (Python の引数順の制約)。呼び出しはすべてキーワード引数です。
-- 新しい操作が仕様に増えたのに実装を書き忘れた場合、`router.py` の import でエラーになります。Flask / Falcon は `verify()` で「未実装のメソッドがあります: ○○」と分かりやすく報告します。
+- Method parameters are ordered **required → optional**, not path/query/header/cookie/form/body (a Python constraint on parameter order). Calls always use keyword arguments.
+- If an operation is added to the spec but you forget to implement it, the import of `router.py` fails. Flask / Falcon report it clearly through `verify()`: "未実装のメソッドがあります: ..." (there are unimplemented methods).
 
-### 認証
+### Authentication
 
-`security` が必須の操作 (`op.security`、無ければ全体の `security`) にだけ、認証情報が渡されます。`security: []` や、空の要求 `{}` を含む操作は認証不要として扱います。
+Authentication information is passed only to operations that require `security` (`op.security`, otherwise the global `security`). An operation with `security: []`, or with an empty requirement `{}`, is treated as not requiring authentication.
 
-`_impl/auth.py` に `AuthInfo` と `verify_access_token` を書きます。
+Write `AuthInfo` and `verify_access_token` in `_impl/auth.py`.
 
-FastAPI (`Depends` として使われるので、`HTTPBearer` などをそのまま使えます):
+FastAPI (it is used as a `Depends`, so `HTTPBearer` and the like work as they are):
 
 ```python
 from dataclasses import dataclass
@@ -346,11 +367,11 @@ _bearer = HTTPBearer(auto_error=False)
 def verify_access_token(credentials: HTTPAuthorizationCredentials | None = Depends(_bearer)) -> AuthInfo:
     if credentials is None:
         raise HTTPException(status_code=401, detail="missing token")
-    claims = decode_jwt(credentials.credentials)   # 検証は自分で実装する
+    claims = decode_jwt(credentials.credentials)   # implement the verification yourself
     return AuthInfo(email=claims["email"])
 ```
 
-生成される `router.py`:
+The generated `router.py`:
 
 ```python
 def add_pet(pet: models.Pet,
@@ -359,130 +380,133 @@ def add_pet(pet: models.Pet,
     return impl.add_pet(auth=auth, pet=pet)
 ```
 
-Flask / Falcon は `Depends` が無いので、最初に `verify_access_token(request)` (Falcon は `req`) を呼びます。失敗させるときは `ApiError(401, "...")` を raise します。
+Flask / Falcon have no `Depends`, so `verify_access_token(request)` (`req` for Falcon) is called first. To reject a request, raise `ApiError(401, "...")`.
 
 ```python
 from ..generated.runtime import ApiError
 
-def verify_access_token(request) -> AuthInfo:       # Falcon は (req)
+def verify_access_token(request) -> AuthInfo:       # (req) for Falcon
     if request.headers.get("Authorization") != "Bearer ...":
         raise ApiError(401, "invalid token")
     return AuthInfo(...)
 ```
 
-- 認証が必要な操作が 1 つでもあると、`_impl/auth.py` が無い場合は import でエラーになります。
-- `security` のスキーマ (Bearer / apiKey など) は区別せず、`verify_access_token` 1 本に集約します。
-- 仕様のパラメータ名が `auth` だと `auth_` になります (予約のため)。
+- If even one operation requires authentication, a missing `_impl/auth.py` makes the import fail.
+- `security` schemes (Bearer / apiKey, etc.) are not distinguished; they all go through the single `verify_access_token`.
+- A spec parameter named `auth` becomes `auth_` (the name is reserved).
 
-### モデル (`models.py`)
+### Models (`models.py`)
 
-- pydantic v2 の `BaseModel`。フィールド名は **JSON の名前のまま** です (snake_case にはしません)。
-- 必須でないフィールドは `T | None = None` (既定値があれば、その値)。
-- 制約を `Field(...)` に反映します: `minLength` / `maxLength` / `pattern` / `minimum` / `maximum` (`exclusive*` も) / `minItems` / `maxItems`、`description`。
-- Python として使えない名前 (予約語など) や、モデル名・import 名 (`datetime`、`Any` など) と衝突する名前には `_` を付け、`alias` で JSON の名前を保ちます。この場合 `populate_by_name=True` を付けます。
-- enum は `class Status(str, Enum)` です。プロパティ内の enum は `<モデル名><プロパティ名>Enum` になります。
-- 型の対応: `string` → `str`、`date` → `datetime.date`、`date-time` → `datetime.datetime`、`uuid` → `uuid.UUID`、`byte` / `binary` → `bytes`、配列 → `list[T]` (`uniqueItems` なら `set[T]`)、`additionalProperties` → `dict[str, T]`、`nullable` → `T | None`。
-- 前方参照・循環参照は、末尾の `model_rebuild()` で解決します。
+- pydantic v2 `BaseModel`. Field names are **the JSON names as they are** (not converted to snake_case).
+- Non-required fields are `T | None = None` (or the default value if there is one).
+- Constraints are reflected in `Field(...)`: `minLength` / `maxLength` / `pattern` / `minimum` / `maximum` (and `exclusive*`) / `minItems` / `maxItems`, `description`.
+- A name that is not usable in Python (reserved words, etc.) or that collides with a model or import name (`datetime`, `Any`, ...) gets a trailing `_`, and an `alias` keeps the JSON name. In that case `populate_by_name=True` is added.
+- An enum is `class Status(str, Enum)`. An enum inside a property is named `<Model><Property>Enum`.
+- Type mapping: `string` → `str`, `date` → `datetime.date`, `date-time` → `datetime.datetime`, `uuid` → `uuid.UUID`, `byte` / `binary` → `bytes`, array → `list[T]` (`set[T]` for `uniqueItems`), `additionalProperties` → `dict[str, T]`, `nullable` → `T | None`.
+- Forward and circular references are resolved by `model_rebuild()` at the end.
 
-### オプション (`-p`)
+### Options (`-p`)
 
-| オプション | 既定値 | 内容 |
+| Option | Default | Meaning |
 | --- | --- | --- |
-| `implPackage` | `.._impl` | 実装クラスのパッケージ。`.._impl` は出力先の 1 つ上、`._impl` は出力先の直下、`.` で始まらなければ絶対 import (例: `myapp._impl`) |
-| `basePath` | (`servers[0].url` のパス) | ルートの prefix |
+| `implPackage` | `.._impl` | Package of the implementation classes. `.._impl` is one level above the output directory, `._impl` is directly under it, and anything not starting with `.` is an absolute import (e.g. `myapp._impl`) |
+| `basePath` | (path of `servers[0].url`) | Route prefix |
 
-`implPackage=._impl` (出力先の直下) にした場合は、その下への書き込みを拒否するガードが働きます。
+With `implPackage=._impl` (directly under the output directory), a guard refuses to write anything below it.
 
 ### FastAPI (`server/python-fastapi`)
 
-- `router.py` に `router = APIRouter(prefix=...)` と、操作ごとの `@router.<method>(...)` があります。
-- 実装は `impl: <ABC> = Depends(<Impl>)` で差し込まれます。`<Impl>.__init__` の引数にも `Depends(...)` が使えます (DB セッションなど)。
-- `response_model`、`status_code`、`tags`、`summary`、`operation_id`、`deprecated`、成功以外の `responses` を設定します。
-- パス・クエリ・ヘッダ・クッキー・フォームは `Annotated[T, Path()/Query()/Header()/Cookie()/Form()]`、ファイルは `UploadFile` です。クエリの `default` と制約も反映します。
-- フォームを使う操作がある場合は、別途 `python-multipart` が必要です。
-- 起動: `app.include_router(router)`。
+- `router.py` has `router = APIRouter(prefix=...)` and one `@router.<method>(...)` per operation.
+- The implementation is injected with `impl: <ABC> = Depends(<Impl>)`. The `__init__` arguments of `<Impl>` can also use `Depends(...)` (for a DB session, etc.).
+- It sets `response_model`, `status_code`, `tags`, `summary`, `operation_id`, `deprecated`, and the non-success `responses`.
+- Path/query/header/cookie/form parameters are `Annotated[T, Path()/Query()/Header()/Cookie()/Form()]`; files are `UploadFile`. Query `default` and constraints are reflected too.
+- If any operation uses a form, `python-multipart` is required separately.
+- Start-up: `app.include_router(router)`.
 
 ### Flask (`server/python-flask`)
 
-- `router.py` に `router = Blueprint("api", ...)`。起動: `app.register_blueprint(router)`。
-- 入力の検証・変換は `runtime.py` の `parse()` (pydantic の `TypeAdapter`)。不正なら `ApiError(422)` で、`{"detail": [...]}` を返します。
-- 出力は `dump()` で JSON にします。モデルのインスタンスを返してください。
-- 実装クラスはリクエストごとに **引数なしで** 生成されます (`Depends` による注入はありません)。
-- ファイルパラメータは `request.files` の値がそのまま渡されます。
+- `router.py` has `router = Blueprint("api", ...)`. Start-up: `app.register_blueprint(router)`.
+- Input is validated and converted by `parse()` in `runtime.py` (pydantic `TypeAdapter`). Invalid input raises `ApiError(422)` and returns `{"detail": [...]}`.
+- Output is turned into JSON by `dump()`. Return model instances.
+- The implementation class is created for every request **with no arguments** (no injection with `Depends`).
+- A file parameter receives the value of `request.files` as it is.
 
 ### Falcon (`server/python-falcon`)
 
-- `router.py` に `register_routes(app, prefix=...)`。起動: `register_routes(falcon.App())`。
-- 同じパスの操作は 1 つのリソースクラスにまとまります (`on_get` / `on_post`)。
-- そのほかは Flask と同じです (`runtime.py`、引数なしの実装生成、422 の形式)。
-- Falcon 3 以降が前提です (`resp.status` に int を使う)。
-- **multipart のファイル受信は未対応** です。ファイルパラメータには `None` が渡され、生成時に警告が出ます。
+- `router.py` has `register_routes(app, prefix=...)`. Start-up: `register_routes(falcon.App())`.
+- Operations on the same path are grouped into one resource class (`on_get` / `on_post`).
+- Everything else is the same as Flask (`runtime.py`, argument-less creation of the implementation, the 422 format).
+- Falcon 3 or later is required (`resp.status` is set to an int).
+- **Receiving files via multipart is not supported.** File parameters receive `None`, and a warning is printed at generation time.
 
-### 動作要件
+### Requirements
 
-- Python 3.10 以上 (`X | None`、`list[str]` の記法)。
-- 実際に動かして確認済み: Python 3.14 / FastAPI 0.142 / pydantic 2.13 / Falcon 4.4 / Flask。
+- Python 3.10 or later (the `X | None` and `list[str]` syntax).
+- Verified by actually running: Python 3.14 / FastAPI 0.142 / pydantic 2.13 / Falcon 4.4 / Flask.
 
 ---
 
-## テンプレート
+## Templates
 
-各ターゲットの `templates/*.mustache` (mustache 形式) で出力の形を決めます。
+The shape of the output is defined by the `templates/*.mustache` files of each target (mustache format).
 
-- `-t <dir>` に同名の `.mustache` を置くと、ターゲット内蔵のものより優先されます。
-- テンプレートは任意です。`generate.js` がテンプレートを使わず、文字列を直接組み立ててもかまいません。
-- 複数ターゲットで共有するテンプレートは、`generate.js` の `meta.templateDirs` (ターゲットからの相対パス) で宣言します。Python 系が `server/_python/templates` を共有しています。
-- エスケープは無効です (コード生成のため)。
-- 空白だけの行はエディタに削られやすいので、テンプレートでは `{{{sp2}}}` のような変数で出力している箇所があります。
+- A `.mustache` file with the same name placed in the directory given with `-t <dir>` takes precedence over the one built into the target.
+- Templates are optional. `generate.js` may build strings directly without using any template.
+- Templates shared by several targets are declared in `meta.templateDirs` of `generate.js` (paths relative to the target). The Python targets share `server/_python/templates`.
+- Escaping is disabled (this is code generation).
+- Lines containing only whitespace are easily stripped by editors, so some places in the templates emit them with variables such as `{{{sp2}}}`.
 
-## ターゲットの追加
+## Adding a target
 
-`server/<名前>/generate.js` または `client/<名前>/generate.js` を作ると、`node oag.js list` に現れます。
+Create `server/<name>/generate.js` or `client/<name>/generate.js` and it shows up in `node oag.js list`.
 
 ```js
 export const meta = {
-  description: '説明',
-  templateDirs: [],                       // 共有テンプレート (任意)
-  options: {                              // -p で渡せるオプション。default の型で変換される
-    foo: { default: 'bar', description: '...' },
-    flag: { default: false, description: '...' },   // boolean は true/false で渡す
+  description: { en: 'Description', ja: '説明' },   // a string, or { en, ja } (shown by `help <target>`)
+  templateDirs: [],                       // shared templates (optional)
+  options: {                              // options accepted by -p; converted by the type of default
+    foo: { default: 'bar', description: { en: '...', ja: '...' } },
+    flag: { default: false, description: '...' },   // pass booleans as true/false
   },
 };
 
 export default async function generate({ spec, operations, options, render, write, log }) {
-  // spec        : 読み込み済みの OpenAPI。インラインスキーマは昇格済み
-  // operations  : { path, method, operationId, tags, summary, description, deprecated,
-  //                 parameters, requestBody, responses, security, raw } の配列
-  //               ($ref は解決済み。スキーマ内の $ref はモデル名を保つため残る)
-  // options     : -p の値 (既定値を含む)
-  // render(name, view) : テンプレートを描画する (name は拡張子なし)
-  // write(relPath, content) : 出力先からの相対パスに書く。出力先の外には書けない
-  // log(message) : 警告の表示
+  // spec        : the loaded OpenAPI. Inline schemas are already promoted
+  // operations  : array of { path, method, operationId, tags, summary, description, deprecated,
+  //                          parameters, requestBody, responses, security, raw }
+  //               ($ref is resolved; $ref inside schemas is kept so that model names survive)
+  // options     : the values of -p (including defaults)
+  // render(name, view) : renders a template (name without extension)
+  // write(relPath, content) : writes to a path relative to the output directory. Cannot write outside it
+  // log(message) : prints a warning
 }
 ```
 
-## 動作確認 (開発用)
+Messages that `generate.js` shows to the user should go through `t(key, params)` of `lib/i18n.js`, with the English and Japanese text added to its catalog (for example `log(t('servers_url_invalid', { server }))`). Do not let the language change the generated files.
 
-本家 (openapi-generator 7.12.0) の出力が手元にあれば、ファイル単位で比較できます。`@Generated` の日時だけは無視します。
+## Verification (for development)
+
+If you have the output of openapi-generator 7.12.0, you can compare it file by file. Only the `@Generated` timestamp is ignored.
 
 ```bash
-node tools/cmp.mjs <本家の出力> <oag の出力> [表示する差分ファイル数] [名前フィルタ]
+node tools/cmp.mjs <openapi-generator output> <oag output> [number of diff files to show] [name filter]
 ```
 
-Java JAX-RS と TypeScript fetch は、実際の業務仕様 (140 操作・約 300 モデル規模) で、本家の出力と **全ファイルが一致** することを確認しました。この仕様と本家の出力は非公開のため、リポジトリには含めていません。自分の仕様で確認するときは、同じ仕様を本家で生成し、`tools/cmp.mjs` で比較してください。
+For Java JAX-RS and TypeScript fetch, it was confirmed on a real business spec (not public) that **every file is identical** to the output of openapi-generator. That spec and its output are not public, so they are not in this repository. To check against your own spec, generate the same spec with openapi-generator and compare with `tools/cmp.mjs`.
 
-Python 系は、同じ業務仕様と、petstore に認証を足した仕様で動作確認をしました。
+The Python targets were checked with the same business spec and with petstore plus authentication.
 
-- 手書きの `_impl` を書き、FastAPI の `TestClient` / Flask の `test_client` / `falcon.testing` でリクエストを通す。
-- 正常系 (ボディ → モデル → JSON、クエリの配列・既定値、パス・ヘッダ、フォーム、void) と、異常系 (必須欠落・型違い・制約違反は 422、認証なしは 401) を確認。
-- 業務仕様では、全ルートの登録と、FastAPI の OpenAPI 生成を確認。
+- Write a hand-written `_impl` and send requests through FastAPI's `TestClient`, Flask's `test_client` and `falcon.testing`.
+- Checked the normal cases (body → model → JSON, query arrays and defaults, path and header, forms, void) and the error cases (missing required value, wrong type and constraint violation give 422; no authentication gives 401).
+- With the business spec, the registration of all routes and FastAPI's OpenAPI generation were checked.
 
-リポジトリに含まれる `examples/petstore.yaml` で、各ターゲットの生成と、生成物の構文チェックができます。
+With `examples/petstore.yaml`, included in this repository, you can generate each target and syntax-check the generated code.
 
-## 既知の制限
+## Known limitations
 
-- `oneOf` / `anyOf` / `discriminator` は未対応です (プロパティのみ生成し、警告します)。
-- 外部ファイルへの `$ref` は未対応です。
-- 本家との一致を確認できているのは、上記の業務仕様が使う機能の範囲です。パスパラメータ・クエリ・ヘッダ・enum・description・`useSwaggerAnnotations=true`・`interfaceOnly=false` などは実装済みですが、本家の出力との一致は未確認です。
-- Python サーバーの認証 (`security`) は、スキーマごとの区別をしません。
-- `server/jax-rs` と `client/typescript-fetch` の出力に含まれる `7.12.0` は、本家と同一にするための固定値です。
+- `oneOf` / `anyOf` / `discriminator` are not supported (only the properties are generated, with a warning).
+- `$ref` to an external file is not supported.
+- The match with openapi-generator is confirmed only for the features used by the business spec above. Path/query/header parameters, enums, descriptions, `useSwaggerAnnotations=true`, `interfaceOnly=false` and so on are implemented, but their match with openapi-generator's output is unverified.
+- Authentication (`security`) of the Python servers does not distinguish between schemes.
+- The comments, docstrings and error messages written inside the generated Python files are in Japanese. `--lang` does not change them, so that the output stays the same on every machine.
+- The `7.12.0` in the output of `server/jax-rs` and `client/typescript-fetch` is a fixed value used to match openapi-generator exactly.

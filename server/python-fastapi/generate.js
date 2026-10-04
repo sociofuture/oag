@@ -3,7 +3,10 @@
 import { TEMPLATE_DIRS, commonOptions, guardWrite, pathWithPyNames, routerPrefix, writeBase } from '../_python/common.js';
 
 export const meta = {
-  description: 'Python FastAPI server (操作ごとの ABC + router.py。実装は手書きの _impl に置く)',
+  description: {
+    en: 'Python FastAPI server (one ABC per operation + router.py; implementations go in a hand-written _impl)',
+    ja: 'Python FastAPI サーバー (操作ごとの ABC + router.py。実装は手書きの _impl に置く)',
+  },
   templateDirs: TEMPLATE_DIRS,
   options: { ...commonOptions },
 };

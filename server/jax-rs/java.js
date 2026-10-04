@@ -1,5 +1,6 @@
 // OpenAPI スキーマ -> Java の型/モデル/オペレーション変換 (テンプレートに渡すビューを作る)
 import { resolveRef, refName } from '../../lib/spec.js';
+import { t } from '../../lib/i18n.js';
 import { createSchemaUtil } from '../../lib/schema.js';
 import { camelize, lowerFirstChar, upperFirstChar, words } from '../../lib/naming.js';
 
@@ -206,7 +207,7 @@ export function createJava(spec, o) {
         const jt = enumJavaType(schema);
         models.push({ isEnum: true, classname, schemaName, javaType: jt, values: enumValues(schema.enum, jt), description: oneLine(schema.description), imports: [] });
       } else if (k === 'model') {
-        if (schema.oneOf || schema.anyOf) console.warn(`[jax-rs] ${schemaName}: oneOf/anyOf は未対応のためプロパティのみ生成します`);
+        if (schema.oneOf || schema.anyOf) o.log(t('oneof_unsupported', { name: schemaName }));
         const flat = flatten(schema);
         const imports = new Set();
         const vars = [];
