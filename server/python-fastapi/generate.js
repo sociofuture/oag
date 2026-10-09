@@ -13,7 +13,7 @@ export const meta = {
 
 export default async function generate({ spec, operations, options, render, write: rawWrite, log }) {
   const write = guardWrite(rawWrite, options.implPackage);
-  const base = writeBase({ spec, operations, options, render, write, fileType: 'UploadFile' });
+  const base = writeBase({ spec, operations, options, render, write, fileType: 'UploadFile', pydanticAlias: true });
 
   const routes = base.ops.map((op) => {
     const modelResp = op.returnR !== 'None' && !op.responseClass;

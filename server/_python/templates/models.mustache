@@ -1,6 +1,9 @@
 {{{generated}}}
 from __future__ import annotations
 
+{{#isDataclass}}
+from dataclasses import dataclass, field
+{{/isDataclass}}
 {{#mods}}
 import {{m}}
 {{/mods}}
@@ -8,8 +11,17 @@ from enum import Enum
 {{#typingAny}}
 from typing import Any
 {{/typingAny}}
+{{#typingAnnotated}}
+from typing import Annotated
+{{/typingAnnotated}}
+{{#isPydantic}}
 
 from pydantic import BaseModel, ConfigDict, Field
+{{/isPydantic}}
+{{#typingAnnotated}}
+
+from pydantic import Field
+{{/typingAnnotated}}
 {{#enums}}
 
 
@@ -25,15 +37,23 @@ class {{classname}}({{base}}, Enum):
 {{#models}}
 
 
+{{#isDataclass}}
+@dataclass(kw_only=True)
+class {{classname}}:
+{{/isDataclass}}
+{{#isPydantic}}
 class {{classname}}(BaseModel):
+{{/isPydantic}}
     {{#description}}
     """{{{.}}}"""
 
     {{/description}}
+    {{#isPydantic}}
     {{#needsAlias}}
     model_config = ConfigDict(populate_by_name=True)
 
     {{/needsAlias}}
+    {{/isPydantic}}
     {{#fields}}
     {{{line}}}
     {{/fields}}
@@ -43,9 +63,11 @@ class {{classname}}(BaseModel):
     {{/description}}
     {{/hasFields}}
 {{/models}}
+{{#isPydantic}}
 
 
 # 前方参照 (循環参照を含む) を解決する
 {{#allModels}}
 {{classname}}.model_rebuild()
 {{/allModels}}
+{{/isPydantic}}

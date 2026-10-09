@@ -290,7 +290,7 @@ app/                      ← 手書きの領域 (Python パッケージ)
     add_pet.py              class AddPetApiImpl(AddPetApi)
   generated/              ← -o の出力先。丸ごと消して再生成してよい
     __init__.py
-    models.py               pydantic v2 のモデル (enum を含む)
+    models.py               pydantic v2 のモデルまたは dataclass (enum を含む)
     router.py               ルート定義。_impl を登録する
     runtime.py              (Flask / Falcon のみ) 検証・変換のヘルパ
     apis/
@@ -405,11 +405,21 @@ def verify_access_token(request) -> AuthInfo:       # Falcon は (req)
 - 型の対応: `string` → `str`、`date` → `datetime.date`、`date-time` → `datetime.datetime`、`uuid` → `uuid.UUID`、`byte` / `binary` → `bytes`、配列 → `list[T]` (`uniqueItems` なら `set[T]`)、`additionalProperties` → `dict[str, T]`、`nullable` → `T | None`。
 - 前方参照・循環参照は、末尾の `model_rebuild()` で解決します。
 
+#### `modelType=dataclass`
+
+`-p modelType=dataclass` にすると、モデルは `BaseModel` ではなく素の `@dataclass(kw_only=True)` になります (Python 3.10 以上)。実行時の検証はしません。型の確認は mypy などで行ってください。
+
+- 制約 (`minLength`, `pattern`, `minimum` など) とフィールドの `description` は出力しません。
+- Python 名が JSON 名と違うフィールドは、`field(metadata={"json": "..."})` に JSON 名を残します。
+- FastAPI は dataclass を内部で pydantic に包んで、リクエスト・レスポンスを自分で検証します。そのため FastAPI では pydantic が依存に残ります。名前が違うフィールドには、FastAPI ターゲットだけ `Annotated[T, Field(alias="...")]` も書くので、`models.py` が `pydantic.Field` を import します。`router.py` の query / path / header パラメータの制約は、これまでどおり効きます。
+- Flask / Falcon では、`runtime.py` が pydantic を使いません。`parse()` は注釈の型への変換だけをします (入れ子の dataclass、list、dict、enum、`datetime` / `date` / `UUID`、文字列からの数値・真偽値)。必須フィールドの欠落と変換できない値だけ `ApiError(422)` にして、ほかは確認しません。`dump()` は戻り値を JSON にできる値に変換します (JSON 名で出力)。
+
 ### オプション (`-p`)
 
 | オプション | 既定値 | 内容 |
 | --- | --- | --- |
 | `implPackage` | `.._impl` | 実装クラスのパッケージ。`.._impl` は出力先の 1 つ上、`._impl` は出力先の直下、`.` で始まらなければ絶対 import (例: `myapp._impl`) |
+| `modelType` | `pydantic` | `pydantic` (`BaseModel`。実行時に検証する) または `dataclass` (素の `@dataclass`。実行時の検証なし。上記参照) |
 | `basePath` | (`servers[0].url` のパス) | ルートの prefix |
 
 `implPackage=._impl` (出力先の直下) にした場合は、その下への書き込みを拒否するガードが働きます。
@@ -426,7 +436,7 @@ def verify_access_token(request) -> AuthInfo:       # Falcon は (req)
 ### Flask (`server/python-flask`)
 
 - `router.py` に `router = Blueprint("api", ...)`。起動: `app.register_blueprint(router)`。
-- 入力の検証・変換は `runtime.py` の `parse()` (pydantic の `TypeAdapter`)。不正なら `ApiError(422)` で、`{"detail": [...]}` を返します。
+- 入力の検証・変換は `runtime.py` の `parse()` (pydantic の `TypeAdapter`。`modelType=dataclass` のときは pydantic を使わない軽い変換)。不正なら `ApiError(422)` で、`{"detail": [...]}` を返します。
 - 出力は `dump()` で JSON にします。モデルのインスタンスを返してください。
 - 実装クラスはリクエストごとに **引数なしで** 生成されます (`Depends` による注入はありません)。
 - ファイルパラメータは `request.files` の値がそのまま渡されます。

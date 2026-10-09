@@ -290,7 +290,7 @@ app/                      ← hand-written area (a Python package)
     add_pet.py              class AddPetApiImpl(AddPetApi)
   generated/              ← the -o output directory. Safe to delete entirely and regenerate
     __init__.py
-    models.py               pydantic v2 models (including enums)
+    models.py               pydantic v2 models or dataclasses (including enums)
     router.py               Route definitions. Registers _impl
     runtime.py              (Flask / Falcon only) validation / conversion helpers
     apis/
@@ -405,11 +405,21 @@ def verify_access_token(request) -> AuthInfo:       # (req) for Falcon
 - Type mapping: `string` → `str`, `date` → `datetime.date`, `date-time` → `datetime.datetime`, `uuid` → `uuid.UUID`, `byte` / `binary` → `bytes`, array → `list[T]` (`set[T]` for `uniqueItems`), `additionalProperties` → `dict[str, T]`, `nullable` → `T | None`.
 - Forward and circular references are resolved by `model_rebuild()` at the end.
 
+#### `modelType=dataclass`
+
+With `-p modelType=dataclass` the models are plain `@dataclass(kw_only=True)` classes (Python 3.10 or later) instead of `BaseModel`. Nothing is validated at runtime; check types with mypy.
+
+- Constraints (`minLength`, `pattern`, `minimum`, ...) and field `description` are **not** emitted.
+- A field whose Python name differs from the JSON name keeps the JSON name in `field(metadata={"json": "..."})`.
+- FastAPI still validates request and response bodies by itself (it wraps dataclasses with pydantic), so it stays a dependency there. For renamed fields, the FastAPI target also writes `Annotated[T, Field(alias="...")]`, which imports `pydantic.Field` in `models.py`. Query/path/header parameter constraints in `router.py` still apply.
+- In Flask / Falcon, `runtime.py` no longer uses pydantic. `parse()` only converts values to the annotated types (nested dataclasses, lists, dicts, enums, `datetime` / `date` / `UUID`, numbers and booleans from strings). It rejects a missing required field and a value that cannot be converted with `ApiError(422)`; it does not check anything else. `dump()` turns the return value into JSON-compatible values (by the JSON names).
+
 ### Options (`-p`)
 
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `implPackage` | `.._impl` | Package of the implementation classes. `.._impl` is one level above the output directory, `._impl` is directly under it, and anything not starting with `.` is an absolute import (e.g. `myapp._impl`) |
+| `modelType` | `pydantic` | `pydantic` (`BaseModel`; validates at runtime) or `dataclass` (plain `@dataclass`; no runtime validation, see above) |
 | `basePath` | (path of `servers[0].url`) | Route prefix |
 
 With `implPackage=._impl` (directly under the output directory), a guard refuses to write anything below it.
@@ -426,7 +436,7 @@ With `implPackage=._impl` (directly under the output directory), a guard refuses
 ### Flask (`server/python-flask`)
 
 - `router.py` has `router = Blueprint("api", ...)`. Start-up: `app.register_blueprint(router)`.
-- Input is validated and converted by `parse()` in `runtime.py` (pydantic `TypeAdapter`). Invalid input raises `ApiError(422)` and returns `{"detail": [...]}`.
+- Input is validated and converted by `parse()` in `runtime.py` (pydantic `TypeAdapter`; with `modelType=dataclass`, a light conversion without pydantic). Invalid input raises `ApiError(422)` and returns `{"detail": [...]}`.
 - Output is turned into JSON by `dump()`. Return model instances.
 - The implementation class is created for every request **with no arguments** (no injection with `Depends`).
 - A file parameter receives the value of `request.files` as it is.

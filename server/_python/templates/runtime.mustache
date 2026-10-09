@@ -1,12 +1,31 @@
 {{{generated}}}
+{{#isPydantic}}
 """Flask / Falcon 用の実行時ヘルパ (入力の検証・出力の変換・起動時チェック)。"""
+{{/isPydantic}}
+{{#isDataclass}}
+"""Flask / Falcon 用の実行時ヘルパ (入力の変換・出力の変換・起動時チェック)。
+
+型の検証はしない (mypy 等で行う)。JSON の値を型注釈に合わせて変換するだけで、
+制約 (minLength など) も確認しない。必須フィールドの欠落と変換できない値だけを 422 にする。
+"""
+{{/isDataclass}}
 from __future__ import annotations
 
+{{#isDataclass}}
+import dataclasses
+import datetime
+import enum
+import types
+import typing
+import uuid
+{{/isDataclass}}
 import inspect
 from functools import lru_cache
 from typing import Any
+{{#isPydantic}}
 
 from pydantic import TypeAdapter, ValidationError
+{{/isPydantic}}
 
 
 class ApiError(Exception):
@@ -16,6 +35,7 @@ class ApiError(Exception):
         super().__init__(str(detail))
         self.status = status
         self.detail = detail
+{{#isPydantic}}
 
 
 @lru_cache(maxsize=None)
@@ -41,6 +61,137 @@ def parse(tp: Any, value: Any, name: str, loc: str, required: bool = True, defau
 def dump(tp: Any, value: Any) -> Any:
     """実装の戻り値を JSON にできる値に変換する。"""
     return _adapter(tp).dump_python(value, mode="json", by_alias=True)
+{{/isPydantic}}
+{{#isDataclass}}
+
+
+class _Invalid(ValueError):
+    def __init__(self, loc: list[Any], msg: str, type_: str) -> None:
+        super().__init__(msg)
+        self.loc = loc
+        self.msg = msg
+        self.type = type_
+
+
+@lru_cache(maxsize=None)
+def _hints(cls: type) -> dict[str, Any]:
+    return typing.get_type_hints(cls)
+
+
+def _json_name(f: dataclasses.Field) -> str:
+    return f.metadata.get("json", f.name)
+
+
+def _scalar(tp: type, value: Any, loc: list[Any]) -> Any:
+    """文字列 (クエリ・ヘッダ・フォーム・JSON) を tp に変換する。文字列でなければそのまま返す。"""
+    if not isinstance(value, str) or tp is str:
+        return value
+    try:
+        if tp is bool:
+            if value.lower() in ("true", "1"):
+                return True
+            if value.lower() in ("false", "0"):
+                return False
+            raise ValueError(value)
+        if tp is int:
+            return int(value)
+        if tp is float:
+            return float(value)
+        if tp is datetime.datetime:
+            return datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if tp is datetime.date:
+            return datetime.date.fromisoformat(value)
+        if tp is uuid.UUID:
+            return uuid.UUID(value)
+        if tp is bytes:
+            return value.encode()
+    except ValueError as e:
+        raise _Invalid(loc, f"Input should be a valid {tp.__name__}", "value_error") from e
+    return value
+
+
+def _convert(tp: Any, value: Any, loc: list[Any]) -> Any:
+    origin = typing.get_origin(tp)
+    args = typing.get_args(tp)
+    if origin is typing.Union or origin is types.UnionType:
+        if value is None and type(None) in args:
+            return None
+        error: _Invalid | None = None
+        for a in args:
+            if a is type(None):
+                continue
+            try:
+                return _convert(a, value, loc)
+            except _Invalid as e:
+                error = e
+        raise error or _Invalid(loc, "Input should not be None", "value_error")
+    if origin in (list, set, frozenset):
+        if not isinstance(value, (list, tuple, set, frozenset)):
+            raise _Invalid(loc, "Input should be a valid list", "list_type")
+        item = args[0] if args else Any
+        return origin(_convert(item, v, [*loc, i]) for i, v in enumerate(value))
+    if origin is dict:
+        if not isinstance(value, dict):
+            raise _Invalid(loc, "Input should be a valid dictionary", "dict_type")
+        item = args[1] if len(args) == 2 else Any
+        return {k: _convert(item, v, [*loc, k]) for k, v in value.items()}
+    if not isinstance(tp, type):
+        return value
+    if dataclasses.is_dataclass(tp):
+        if not isinstance(value, dict):
+            raise _Invalid(loc, "Input should be a valid dictionary", "dict_type")
+        hints = _hints(tp)
+        kwargs: dict[str, Any] = {}
+        for f in dataclasses.fields(tp):
+            key = next((k for k in (_json_name(f), f.name) if k in value), None)
+            if key is not None:
+                kwargs[f.name] = _convert(hints[f.name], value[key], [*loc, key])
+            elif f.default is dataclasses.MISSING and f.default_factory is dataclasses.MISSING:
+                raise _Invalid([*loc, _json_name(f)], "Field required", "missing")
+        return tp(**kwargs)
+    if issubclass(tp, enum.Enum):
+        try:
+            return tp(value)
+        except ValueError as e:
+            raise _Invalid(loc, f"Input should be one of {[m.value for m in tp]}", "enum") from e
+    return _scalar(tp, value, loc)
+
+
+def parse(tp: Any, value: Any, name: str, loc: str, required: bool = True, default: Any = None) -> Any:
+    """リクエストの値を型 tp に変換する。必須の欠落や変換できない値は ApiError(422)。"""
+    if value is None:
+        if required:
+            raise ApiError(422, [{"loc": [loc, name], "msg": "Field required", "type": "missing"}])
+        return default
+    try:
+        return _convert(tp, value, [])
+    except _Invalid as e:
+        raise ApiError(422, [{"loc": [loc, name, *e.loc], "msg": e.msg, "type": e.type}]) from e
+
+
+def _dump(value: Any) -> Any:
+    if isinstance(value, enum.Enum):
+        return value.value
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return {_json_name(f): _dump(getattr(value, f.name)) for f in dataclasses.fields(value)}
+    if isinstance(value, (datetime.datetime, datetime.date)):
+        text = value.isoformat()
+        return text[:-6] + "Z" if text.endswith("+00:00") else text
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, bytes):
+        return value.decode()
+    if isinstance(value, dict):
+        return {k: _dump(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_dump(v) for v in value]
+    return value
+
+
+def dump(tp: Any, value: Any) -> Any:
+    """実装の戻り値を JSON にできる値に変換する (tp は使わず、値そのものを見る)。"""
+    return _dump(value)
+{{/isDataclass}}
 
 
 def verify(abc: type, impl: type) -> None:

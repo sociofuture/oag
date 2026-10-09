@@ -1,4 +1,4 @@
-// OpenAPI スキーマ -> Python (pydantic v2 / FastAPI) のモデルとオペレーション変換
+// OpenAPI スキーマ -> Python (pydantic v2 または dataclass / FastAPI) のモデルとオペレーション変換
 import { resolveRef, refName } from '../../lib/spec.js';
 import { createSchemaUtil } from '../../lib/schema.js';
 import { camelize, lowerFirstChar, snake, words } from '../../lib/naming.js';
@@ -27,7 +27,8 @@ export function pyParamName(name) {
 const JSON_FIRST = (keys) => keys.find((k) => /json/i.test(k)) ?? keys[0];
 const isForm = (mt) => /x-www-form-urlencoded|multipart\/form-data/.test(mt ?? '');
 
-export function createPy(spec, { fileType = 'UploadFile' } = {}) {
+export function createPy(spec, { fileType = 'UploadFile', modelType = 'pydantic', pydanticAlias = false } = {}) {
+  const dataclass = modelType === 'dataclass';
   const { kind, flatten } = createSchemaUtil(spec);
   const className = (schemaName) => camelize(schemaName);
 
@@ -123,7 +124,8 @@ export function createPy(spec, { fileType = 'UploadFile' } = {}) {
     // 型注釈の評価に失敗する。衝突するフィールド名には _ を付け、JSON 名は alias で保つ。
     const taken = new Set([
       ...Object.keys(spec.components?.schemas ?? {}).map(className),
-      'datetime', 'uuid', 'Any', 'Field', 'BaseModel', 'ConfigDict', 'Enum',
+      'datetime', 'uuid', 'Any', 'Enum',
+      ...(dataclass ? ['dataclass', 'field', 'Annotated', 'Field'] : ['Field', 'BaseModel', 'ConfigDict']),
     ]);
 
     for (const [schemaName, schema] of Object.entries(spec.components?.schemas ?? {})) {
@@ -153,13 +155,21 @@ export function createPy(spec, { fileType = 'UploadFile' } = {}) {
           }
           if (!required && !type.endsWith('| None')) type += ' | None';
           const def = resolved.default !== undefined && typeof resolved.default !== 'object' ? literalDefault(resolved.default, enumRef) : null;
-          const args = fieldArgs(ps, { alias, description: oneLine(resolved.description) });
+          const dv = required ? null : (def ?? 'None');
           let line;
-          if (required) {
-            line = args.length ? `${name}: ${type} = Field(${args.join(', ')})` : `${name}: ${type}`;
+          if (dataclass) {
+            // 制約 (minLength など) は出力しない。JSON 名が違うフィールドだけ metadata に残す (runtime.py が読む)
+            let t = type;
+            if (alias && pydanticAlias) { ctx.typing.add('Annotated'); t = `Annotated[${type}, Field(alias=${str(alias)})]`; }
+            const parts = [...(dv !== null ? [`default=${dv}`] : []), ...(alias ? [`metadata={"json": ${str(alias)}}`] : [])];
+            line = parts.length === 1 && !alias ? `${name}: ${t} = ${dv}` : parts.length ? `${name}: ${t} = field(${parts.join(', ')})` : `${name}: ${t}`;
           } else {
-            const dv = def ?? 'None';
-            line = args.length ? `${name}: ${type} = Field(default=${dv}, ${args.join(', ')})` : `${name}: ${type} = ${dv}`;
+            const args = fieldArgs(ps, { alias, description: oneLine(resolved.description) });
+            if (required) {
+              line = args.length ? `${name}: ${type} = Field(${args.join(', ')})` : `${name}: ${type}`;
+            } else {
+              line = args.length ? `${name}: ${type} = Field(default=${dv}, ${args.join(', ')})` : `${name}: ${type} = ${dv}`;
+            }
           }
           fields.push({ line });
         }
