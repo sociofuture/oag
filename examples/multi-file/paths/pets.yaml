@@ -1,0 +1,30 @@
+get:
+  operationId: listPets
+  tags: [pet]
+  parameters:
+    - $ref: ../common.yaml#/components/parameters/Limit
+  responses:
+    '200':
+      description: ok
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ../schemas/Pet.yaml
+post:
+  operationId: addPet
+  tags: [pet]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../schemas/Pet.yaml
+  responses:
+    '201':
+      description: created
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Pet.yaml

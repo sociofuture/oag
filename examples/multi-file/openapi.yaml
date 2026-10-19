@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+  title: Multi-file example
+  version: 1.0.0
+servers:
+  - url: /api/v1
+paths:
+  # パスアイテム全体を別ファイルに置く
+  /pets:
+    $ref: ./paths/pets.yaml
+  /owners/{ownerId}:
+    get:
+      operationId: getOwner
+      tags: [owner]
+      parameters:
+        # 別ファイルの components の中のパラメータ
+        - $ref: ./common.yaml#/components/parameters/OwnerId
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                # ファイル全体がスキーマ (名前はファイル名から Owner)
+                $ref: ./schemas/Owner.yaml
+        default:
+          # 別ファイルの応答。その中の #/components/schemas/Error は、そのファイルの中を指す
+          $ref: ./common.yaml#/components/responses/Error
+components:
+  schemas:
+    # 外部の Tag と名前が衝突する (外部側は Tag_1 として取り込まれる)
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+    Local:
+      type: object
+      properties:
+        error:
+          $ref: ./common.yaml#/components/schemas/Error

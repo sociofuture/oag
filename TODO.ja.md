@@ -48,7 +48,8 @@
 
 ## 3. 入力の扱い
 
-- 外部ファイルへの `$ref` (`other.yaml#/components/...`)。1 ファイルにまとめる処理、または仕様からの相対でファイルを読む処理が必要。
+- URL への `$ref` (`https://...`)。ローカルのファイルへの参照は取り込み済みです (README を参照)。URL はダウンロードが必要になるので、意図的に対象外にしています。
+- `examples`、`links`、`callbacks`、`securitySchemes`、`discriminator.mapping` の中の外部 `$ref` は書き換えません。ジェネレータがそれらの部分を使わないので、そのままにしています。
 - Swagger 2.0 の入力 (OpenAPI 3 に変換する、または分かりやすい案内を出す)。
 - ベンダー拡張 (`x-...`) は、Java の `x-codegen-request-body-name` 以外は無視している。
 

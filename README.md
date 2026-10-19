@@ -107,7 +107,10 @@ generate:
 | `Unknown target: ...` | `-g` takes `kind/name`, such as `server/jax-rs`. Check with `node oag.js list` |
 | `Unknown option: ...` | The `-p` name is wrong. `node oag.js help <target>` lists the valid options |
 | `only OpenAPI 3.x is supported` | Swagger 2.0 (`swagger: "2.0"`) is not supported. Convert it to OpenAPI 3 |
-| `A $ref to an external file is not supported` | Put the spec in a single file (only `#/...` references are supported) |
+| `Cannot read the file of $ref ...` | The file that a `$ref` points to does not exist. The path is relative to the file that contains the `$ref` |
+| `Cannot resolve $ref: ...` | The file exists, but the `#/...` pointer inside it does not |
+| `A $ref to a URL is not supported` | Download the file and refer to it by a local path |
+| `A $ref must point to a .yaml, .yml or .json file` | Use one of those extensions |
 | `Duplicate operationId` (Python targets) | Give each operation a unique `operationId` |
 | Fails to start with `SyntaxError` etc. | Node.js may be too old. Check that `node -v` is 20 or later |
 
@@ -175,6 +178,7 @@ node oag.js generate -i openapi/api.yml -g server/python-fastapi -o ./backend-py
 oag.js                     CLI. Resolves the target and writes the output
 lib/                       Parts shared by all targets
   spec.js                    Loads the spec, resolves $ref
+  bundle.js                  Bundles $ref to other files into the root spec's components
   operations.js              Flattens paths into operations
   inline.js                  Promotes inline object schemas to components
   schema.js                  Classifies schemas (enum/model/alias), flattens allOf
@@ -191,7 +195,7 @@ server/
 client/
   typescript-fetch/          generate.js, ts.js, templates/
 tools/cmp.mjs              Comparison with openapi-generator output (for development)
-examples/                  Sample spec (petstore.yaml)
+examples/                  Sample specs (petstore.yaml, multi-file/ with $ref to other files)
 ```
 
 A directory without `generate.js`, such as `server/_python/`, is not treated as a target.
@@ -200,7 +204,12 @@ A directory without `generate.js`, such as `server/_python/`, is not treated as 
 
 Every target goes through the following before generation.
 
-- **`$ref` resolution**: local references (`#/...`) only. References to external files are not supported and cause an error.
+- **`$ref` resolution**: local references (`#/...`) and references to other files (`./schemas/Pet.yaml`, `common.yaml#/components/schemas/Error`; relative to the referencing file, or absolute). References to other files are **bundled** right after the spec is loaded: the referenced content is copied into `components` of the root spec and the `$ref` is rewritten to point to it, so every target sees an ordinary single-file spec.
+  - Schemas, parameters, request bodies, responses and headers go to the matching `components` section. The name is the last segment of the pointer (`…/schemas/Pet` → `Pet`), or the file name when the whole file is referenced (`./Owner.yaml` → `Owner`). If the name is already taken, `_1`, `_2`, … is appended (`Tag` → `Tag_1` → class `Tag1`).
+  - A path item that is a `$ref` to another file (`/pets: {$ref: ./paths/pets.yaml}`) is expanded in place.
+  - A `$ref` inside an external file is resolved relative to that file, and `#/...` in it points into that file. References between files may be circular.
+  - The files must be `.yaml`, `.yml` or `.json`. URLs (`https://...`) are not supported.
+  - `examples/multi-file/` shows all of the above.
 - **Promoting inline schemas** (equivalent to openapi-generator's InlineModelResolver): they are added to `components.schemas` under the names below and replaced with a `$ref`.
 
   | Where | Schema name | Example |
@@ -517,7 +526,7 @@ With `examples/petstore.yaml`, included in this repository, you can generate eac
 Planned work and the details of each gap are in [TODO.md](TODO.md).
 
 - `oneOf` / `anyOf` / `discriminator` are not supported. A schema that is only `oneOf` / `anyOf` becomes `Object` / `any` / `Any`; with `properties`, only the properties are generated (Java prints a warning).
-- `$ref` to an external file is not supported.
+- A `$ref` to a URL is not supported (only local files are bundled).
 - The match with openapi-generator is confirmed only for the features used by the business spec above. Path/query/header parameters, enums, descriptions, `useSwaggerAnnotations=true`, `interfaceOnly=false` and so on are implemented, but their match with openapi-generator's output is unverified.
 - Authentication (`security`) of the Python servers does not distinguish between schemes.
 - The comments, docstrings and error messages written inside the generated Python files are in Japanese. `--lang` does not change them, so that the output stays the same on every machine.

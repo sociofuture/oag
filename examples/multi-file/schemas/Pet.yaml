@@ -1,0 +1,15 @@
+type: object
+required: [name]
+properties:
+  id:
+    type: integer
+    format: int64
+  name:
+    type: string
+  # Pet と Owner は互いに参照する (循環)
+  owner:
+    $ref: ./Owner.yaml
+  tags:
+    type: array
+    items:
+      $ref: ../common.yaml#/components/schemas/Tag

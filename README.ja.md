@@ -107,7 +107,10 @@ generate:
 | `未知のターゲット: ...` と出る | `-g` は `server/jax-rs` のように `種類/名前` で指定します。`node oag.js list` で確認してください |
 | `未知のオプション: ...` と出る | `-p` の名前が違います。`node oag.js help <ターゲット>` で有効なオプションが分かります |
 | `OpenAPI 3.x のみ対応しています` | Swagger 2.0 (`swagger: "2.0"`) は未対応です。OpenAPI 3 に変換してください |
-| `外部ファイルへの $ref は未対応です` | 仕様を 1 ファイルにまとめてください (`$ref` は `#/...` のみ) |
+| `$ref ... のファイルを読み込めません` | `$ref` の指すファイルがありません。パスは、その `$ref` を書いたファイルからの相対です |
+| `$ref を解決できません: ...` | ファイルはありますが、その中の `#/...` のポインタがありません |
+| `URL への $ref は未対応です` | ファイルをダウンロードして、ローカルのパスで参照してください |
+| `$ref の参照先は .yaml / .yml / .json のファイルにしてください` | 拡張子をそのどれかにしてください |
 | `operationId が重複しています` (Python) | 操作ごとに一意の `operationId` を付けてください |
 | `SyntaxError` などで起動しない | Node.js が古い可能性があります。`node -v` で 20 以降か確認してください |
 
@@ -175,6 +178,7 @@ node oag.js generate -i openapi/api.yml -g server/python-fastapi -o ./backend-py
 oag.js                    CLI。ターゲットの解決・出力の書き込み
 lib/                       ターゲットに依存しない共通部分
   spec.js                    仕様の読み込み、$ref の解決
+  bundle.js                  別ファイルへの $ref を、ルート仕様の components に取り込む
   operations.js              paths から operation を平坦化
   inline.js                  インラインのオブジェクトスキーマを components に昇格
   schema.js                  スキーマの種類判定 (enum/model/alias)、allOf の平坦化
@@ -191,7 +195,7 @@ server/
 client/
   typescript-fetch/          generate.js, ts.js, templates/
 tools/cmp.mjs              本家の出力との比較 (開発用)
-examples/                  サンプル仕様 (petstore.yaml)
+examples/                  サンプル仕様 (petstore.yaml、別ファイルへの $ref を使う multi-file/)
 ```
 
 `server/_python/` のように `generate.js` を持たないディレクトリは、ターゲットとして扱われません。
@@ -200,7 +204,12 @@ examples/                  サンプル仕様 (petstore.yaml)
 
 どのターゲットも、生成の前に次の処理を通ります。
 
-- **`$ref` の解決**: ローカル参照 (`#/...`) のみ。外部ファイルへの参照は未対応で、エラーになります。
+- **`$ref` の解決**: ローカル参照 (`#/...`) と、別ファイルへの参照 (`./schemas/Pet.yaml`、`common.yaml#/components/schemas/Error`。参照元のファイルからの相対パス、または絶対パス) に対応しています。別ファイルへの参照は、仕様の読み込み直後に **バンドル** されます。参照先の内容をルート仕様の `components` に取り込み、`$ref` をその取り込み先へ書き換えるので、どのターゲットからも通常の 1 ファイルの仕様に見えます。
+  - スキーマ・パラメータ・requestBody・応答・ヘッダは、対応する `components` の場所に入ります。名前はポインタの末尾 (`…/schemas/Pet` → `Pet`)、ファイル全体を参照した場合はファイル名 (`./Owner.yaml` → `Owner`) です。名前が既に使われていれば `_1`、`_2` … を付けます (`Tag` → `Tag_1` → クラス名 `Tag1`)。
+  - 別ファイルを指すパスアイテム (`/pets: {$ref: ./paths/pets.yaml}`) は、その場に展開します。
+  - 外部ファイルの中の `$ref` は、そのファイルからの相対で解決します。その中の `#/...` も、そのファイルの中を指します。ファイル同士が循環して参照していてもかまいません。
+  - 対象は `.yaml`、`.yml`、`.json` のファイルです。URL (`https://...`) は未対応です。
+  - `examples/multi-file/` に、上記の例がすべて入っています。
 - **インラインスキーマの昇格** (openapi-generator の InlineModelResolver 相当): 次の名前で `components.schemas` に追加し、`$ref` に置き換えます。
 
   | 場所 | スキーマ名 | 例 |
@@ -517,7 +526,7 @@ Python 系は、同じ業務仕様と、petstore に認証を足した仕様で�
 今後の予定と、各項目の詳細は [TODO.ja.md](TODO.ja.md) にあります。
 
 - `oneOf` / `anyOf` / `discriminator` は未対応です。`oneOf` / `anyOf` だけのスキーマは `Object` / `any` / `Any` になり、`properties` と併用した場合はプロパティだけ生成します (Java は警告を出します)。
-- 外部ファイルへの `$ref` は未対応です。
+- URL への `$ref` は未対応です (取り込めるのはローカルのファイルだけです)。
 - 本家との一致を確認できているのは、上記の業務仕様が使う機能の範囲です。パスパラメータ・クエリ・ヘッダ・enum・description・`useSwaggerAnnotations=true`・`interfaceOnly=false` などは実装済みですが、本家の出力との一致は未確認です。
 - Python サーバーの認証 (`security`) は、スキーマごとの区別をしません。
 - 生成される Python ファイルの中のコメント、docstring、エラーメッセージは日本語です。どのマシンで実行しても同じ出力になるよう、`--lang` では変わりません。
