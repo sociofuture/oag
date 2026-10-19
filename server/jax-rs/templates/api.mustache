@@ -6,9 +6,6 @@ import {{.}};
 
 import {{ws}}.ws.rs.*;
 import {{ws}}.ws.rs.core.Response;
-{{#extraImports}}
-import {{.}};
-{{/extraImports}}
 {{#swagger}}
 import io.swagger.annotations.*;
 {{/swagger}}
@@ -40,7 +37,13 @@ public {{#interfaceOnly}}interface{{/interfaceOnly}}{{^interfaceOnly}}class{{/in
 {{#responses}}
      * @return {{{message}}}
 {{/responses}}
+{{#deprecated}}
+     * @deprecated
+{{/deprecated}}
      */
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
     @{{httpMethod}}
 {{#subPath}}
     @Path("{{{.}}}")
@@ -61,9 +64,6 @@ public {{#interfaceOnly}}interface{{/interfaceOnly}}{{^interfaceOnly}}class{{/in
     })
 {{/hasResponses}}
 {{/swagger}}
-{{#deprecated}}
-    @Deprecated
-{{/deprecated}}
 {{#interfaceOnly}}
     {{{returnType}}} {{operationId}}({{{paramsDecl}}});
 {{/interfaceOnly}}
@@ -72,6 +72,9 @@ public {{#interfaceOnly}}interface{{/interfaceOnly}}{{^interfaceOnly}}class{{/in
         return Response.ok().entity("magic!").build();
     }
 {{/interfaceOnly}}
+{{#notLast}}
+
+{{/notLast}}
 {{/operations}}
 
 }

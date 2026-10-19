@@ -1,43 +1,57 @@
 package {{modelPackage}};
 
-import java.util.Objects;
+import {{ws}}.validation.constraints.*;
+import {{ws}}.validation.Valid;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-{{#imports}}
-import {{.}};
-{{/imports}}
 
 /**
  * {{#description}}{{{.}}}{{/description}}{{^description}}Gets or Sets {{schemaName}}{{/description}}
  */
+{{{generatedAnnotation}}}
 public enum {{classname}} {
 {{#values}}
+{{{sp2}}}
   {{name}}({{{literal}}}){{sep}}
 {{/values}}
 
   private {{javaType}} value;
 
-  {{classname}}({{javaType}} v) {
-    value = v;
+  {{classname}}({{javaType}} value) {
+    this.value = value;
   }
 
-  @JsonValue
-  public {{javaType}} value() {
-    return value;
-  }
+    /**
+     * Convert a String into {{javaType}}, as specified in the
+     * <a href="https://download.oracle.com/otndocs/jcp/jaxrs-2_0-fr-eval-spec/index.html">See JAX RS 2.0 Specification, section 3.2, p. 12</a>
+     */
+    public static {{classname}} fromString(String s) {
+      for ({{classname}} b : {{classname}}.values()) {
+        // using Objects.toString() to be safe if value type non-object type
+        // because types like 'int' etc. will be auto-boxed
+        if (java.util.Objects.toString(b.value).equals(s)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected string value '" + s + "'");
+    }
 
   @Override
+  @JsonValue
   public String toString() {
     return String.valueOf(value);
   }
 
   @JsonCreator
-  public static {{classname}} fromValue({{javaType}} v) {
+  public static {{classname}} fromValue({{javaType}} value) {
     for ({{classname}} b : {{classname}}.values()) {
-      if (Objects.equals(b.value, v)) {
+      if (b.value.equals(value)) {
         return b;
       }
     }
-    throw new IllegalArgumentException("Unexpected value '" + v + "'");
+    throw new IllegalArgumentException("Unexpected value '" + value + "'");
   }
 }
+
+

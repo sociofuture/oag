@@ -1,0 +1,398 @@
+openapi: 3.0.3
+info:
+  title: Types
+  version: 0.1.0
+servers:
+  - url: https://api.example.com/v1/
+paths:
+  /params/{pathString}/{pathInt}/{pathUuid}:
+    get:
+      operationId: paramMatrix
+      summary: Every kind of parameter
+      parameters:
+        - { name: pathString, in: path, required: true, schema: { type: string } }
+        - { name: pathInt, in: path, required: true, schema: { type: integer } }
+        - { name: pathUuid, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: qString, in: query, required: true, schema: { type: string } }
+        - { name: qInt32, in: query, schema: { type: integer, format: int32 } }
+        - { name: qInt64, in: query, schema: { type: integer, format: int64 } }
+        - { name: qInteger, in: query, schema: { type: integer } }
+        - { name: qNumber, in: query, schema: { type: number } }
+        - { name: qFloat, in: query, schema: { type: number, format: float } }
+        - { name: qDouble, in: query, schema: { type: number, format: double } }
+        - { name: qBool, in: query, schema: { type: boolean } }
+        - { name: qDate, in: query, schema: { type: string, format: date } }
+        - { name: qDateTime, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: qUuid, in: query, schema: { type: string, format: uuid } }
+        - { name: qByte, in: query, schema: { type: string, format: byte } }
+        - { name: qPassword, in: query, schema: { type: string, format: password } }
+        - { name: qEmail, in: query, schema: { type: string, format: email } }
+        - { name: qUri, in: query, schema: { type: string, format: uri } }
+        - { name: qEnum, in: query, schema: { type: string, enum: [alpha, beta-two, GAMMA_THREE, "4th", "with space", "" ] } }
+        - { name: qEnumInt, in: query, required: true, schema: { type: integer, enum: [1, 2, 3] } }
+        - { name: qStrings, in: query, schema: { type: array, items: { type: string } } }
+        - { name: qInts, in: query, schema: { type: array, items: { type: integer, format: int64 } } }
+        - { name: qCsv, in: query, style: form, explode: false, schema: { type: array, items: { type: string } } }
+        - { name: qPipes, in: query, style: pipeDelimited, schema: { type: array, items: { type: string } } }
+        - { name: qSet, in: query, schema: { type: array, uniqueItems: true, items: { type: string } } }
+        - { name: qDates, in: query, schema: { type: array, items: { type: string, format: date } } }
+        - { name: qPattern, in: query, schema: { type: string, minLength: 2, maxLength: 5, pattern: '^[a-z]+$' } }
+        - { name: qRange, in: query, schema: { type: integer, minimum: 1, maximum: 9, default: 5 } }
+        - { name: qNumRange, in: query, schema: { type: number, minimum: 0.5, maximum: 9.5, exclusiveMinimum: true } }
+        - { name: qDefaultStr, in: query, schema: { type: string, default: hello } }
+        - { name: qDefaultBool, in: query, schema: { type: boolean, default: true } }
+        - { name: hString, in: header, required: true, schema: { type: string } }
+        - { name: hInt, in: header, schema: { type: integer } }
+        - { name: hEnum, in: header, schema: { type: string, enum: [x, y] } }
+        - { name: cString, in: cookie, schema: { type: string } }
+        - { name: class, in: query, schema: { type: string } }
+        - { name: default, in: query, schema: { type: string } }
+        - { name: file, in: query, schema: { type: string } }
+        - { name: snake_case_name, in: query, schema: { type: string } }
+        - { name: kebab-case-name, in: query, schema: { type: string } }
+        - { name: PascalName, in: query, schema: { type: string } }
+        - { name: 'dotted.name', in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: ok
+  /responses/dateTime:
+    get:
+      operationId: responseDateTime
+      responses:
+        '200':
+          description: a date-time
+          content:
+            application/json:
+              schema: { type: string, format: date-time }
+  /responses/date:
+    get:
+      operationId: responseDate
+      responses:
+        '200':
+          description: a date
+          content:
+            application/json:
+              schema: { type: string, format: date }
+  /responses/dateTimes:
+    get:
+      operationId: responseDateTimes
+      responses:
+        '200':
+          description: date-times
+          content:
+            application/json:
+              schema: { type: array, items: { type: string, format: date-time } }
+  /responses/strings:
+    get:
+      operationId: responseStrings
+      responses:
+        '200':
+          description: strings
+          content:
+            application/json:
+              schema: { type: array, items: { type: string } }
+  /responses/integer:
+    get:
+      operationId: responseInteger
+      responses:
+        '200':
+          description: an integer
+          content:
+            application/json:
+              schema: { type: integer, format: int64 }
+  /responses/boolean:
+    get:
+      operationId: responseBoolean
+      responses:
+        '200':
+          description: a boolean
+          content:
+            application/json:
+              schema: { type: boolean }
+  /responses/object:
+    get:
+      operationId: responseObject
+      responses:
+        '200':
+          description: a free-form object
+          content:
+            application/json:
+              schema: { type: object }
+  /responses/mapModel:
+    get:
+      operationId: responseMapModel
+      responses:
+        '200':
+          description: map to model
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/Item'
+  /responses/arrayOfArrays:
+    get:
+      operationId: responseNested
+      responses:
+        '200':
+          description: nested arrays
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Item'
+  /responses/enum:
+    get:
+      operationId: responseEnum
+      responses:
+        '200':
+          description: top-level enum
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Color'
+  /responses/octet:
+    get:
+      operationId: responseOctet
+      responses:
+        '200':
+          description: bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+  /responses/multi:
+    get:
+      operationId: responseMulti
+      responses:
+        '200':
+          description: json or xml
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /bodies/strings:
+    post:
+      operationId: bodyStrings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: array, items: { type: string } }
+      responses:
+        '204': { description: ok }
+  /bodies/string:
+    post:
+      operationId: bodyString
+      requestBody:
+        content:
+          text/plain:
+            schema: { type: string }
+      responses:
+        '204': { description: ok }
+  /bodies/object:
+    post:
+      operationId: bodyObject
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '204': { description: ok }
+  /bodies/map:
+    post:
+      operationId: bodyMap
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/Item'
+      responses:
+        '204': { description: ok }
+  /bodies/inline:
+    post:
+      operationId: bodyInline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [a]
+              properties:
+                a: { type: string }
+                b: { type: integer }
+      responses:
+        '200':
+          description: inline response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+  /bodies/named:
+    post:
+      operationId: bodyNamed
+      x-codegen-request-body-name: payload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Item'
+      responses:
+        '204': { description: ok }
+  /bodies/formfiles:
+    post:
+      operationId: formFiles
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                single: { type: string, format: binary }
+                many:
+                  type: array
+                  items: { type: string, format: binary }
+                note: { type: string }
+                count: { type: integer }
+                when: { type: string, format: date-time }
+                item: { $ref: '#/components/schemas/Item' }
+      responses:
+        '204': { description: ok }
+  /deprecated:
+    get:
+      operationId: oldOperation
+      deprecated: true
+      summary: Old
+      responses:
+        '204': { description: ok }
+components:
+  schemas:
+    Color:
+      type: string
+      enum: [red, green, dark-blue, LIGHT_GRAY, "with space", "9lives", ""]
+    Level:
+      type: integer
+      format: int64
+      enum: [-1, 0, 10]
+    Item:
+      type: object
+      properties:
+        id: { type: string }
+    Problem:
+      type: object
+      properties:
+        detail: { type: string }
+    Everything:
+      description: Every kind of property
+      type: object
+      required: [reqString, reqEnum, reqDate, reqNullable, reqList]
+      properties:
+        reqString: { type: string }
+        reqEnum: { type: string, enum: [one, two] }
+        reqDate: { type: string, format: date }
+        reqNullable: { type: string, nullable: true }
+        reqList: { type: array, items: { type: string } }
+        optString: { type: string, description: An optional string, minLength: 1, maxLength: 10 }
+        optInt32: { type: integer, format: int32, minimum: 0, maximum: 99 }
+        optInt64: { type: integer, format: int64 }
+        optInteger: { type: integer }
+        optNumber: { type: number }
+        optFloat: { type: number, format: float }
+        optDouble: { type: number, format: double, default: 1.5 }
+        optBool: { type: boolean, default: false }
+        optDate: { type: string, format: date }
+        optDateTime: { type: string, format: date-time }
+        optUuid: { type: string, format: uuid }
+        optByte: { type: string, format: byte }
+        optBinary: { type: string, format: binary }
+        optPassword: { type: string, format: password }
+        optEmail: { type: string, format: email }
+        optEmailSized: { type: string, format: email, maxLength: 40 }
+        optUri: { type: string, format: uri }
+        optPattern: { type: string, pattern: '^\d{3}-\d{4}$' }
+        optEnumArray: { type: array, items: { type: string, enum: [p, q] } }
+        optEnumInt: { type: integer, enum: [1, 2] }
+        optTopEnum: { $ref: '#/components/schemas/Color' }
+        optTopEnumRequiredLike: { $ref: '#/components/schemas/Level' }
+        optNullableInt: { type: integer, nullable: true }
+        optNullableModel: { nullable: true, allOf: [ { $ref: '#/components/schemas/Item' } ] }
+        optList: { type: array, items: { type: string }, minItems: 1, maxItems: 5 }
+        optListOfModels: { type: array, items: { $ref: '#/components/schemas/Item' } }
+        optListOfLists:
+          type: array
+          items:
+            type: array
+            items: { type: integer }
+        optSet: { type: array, uniqueItems: true, items: { type: string } }
+        optSetOfModels: { type: array, uniqueItems: true, items: { $ref: '#/components/schemas/Item' } }
+        optMap: { type: object, additionalProperties: { type: integer } }
+        optMapOfModels: { type: object, additionalProperties: { $ref: '#/components/schemas/Item' } }
+        optMapOfLists: { type: object, additionalProperties: { type: array, items: { type: string } } }
+        optObject: { type: object }
+        optAnyObject: { type: object, additionalProperties: true }
+        optInline:
+          type: object
+          required: [x]
+          properties:
+            x: { type: string }
+        optInlineList:
+          type: array
+          items:
+            type: object
+            properties:
+              y: { type: integer }
+        readOnlyProp: { type: string, readOnly: true }
+        writeOnlyProp: { type: string, writeOnly: true }
+        deprecatedProp: { type: string, deprecated: true }
+        withExample: { type: string, example: sample }
+        withIntExample: { type: integer, example: 42 }
+        snake_case_prop: { type: string }
+        kebab-case-prop: { type: string }
+        PascalProp: { type: string }
+        UPPER_PROP: { type: string }
+        class: { type: string }
+        default: { type: string }
+        file: { type: string }
+        type: { type: string }
+        list: { type: string }
+        object: { type: string }
+        new: { type: string }
+        '123numeric': { type: string }
+        with space: { type: string }
+    Child:
+      allOf:
+        - $ref: '#/components/schemas/Everything'
+        - type: object
+          required: [extra]
+          properties:
+            extra: { type: string }
+    Empty:
+      type: object
+    WithDescription:
+      description: |
+        A multi-line
+        description with "quotes" and a backslash \
+      type: object
+      properties:
+        text:
+          type: string
+          description: |
+            Line one
+            Line two with "quotes"

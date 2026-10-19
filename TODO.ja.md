@@ -20,7 +20,7 @@
 ### やること
 
 1. **手軽な改善: すべてのターゲットで警告する。** 既存の `oneof_unsupported` の警告を、TypeScript と Python でも出す。あわせて、`oneOf` / `anyOf` だけのスキーマでも出す (今は Java だけで、しかも「プロパティと `oneOf` の併用」のときだけ)。
-2. **基準となる本家の出力を用意する。** Java と TypeScript は openapi-generator 7.12.0 と完全に一致させる必要がありますが、本家が `oneOf` / `anyOf` / `discriminator` をどう出力するかは、ここでは分かっていません。小さな仕様 (discriminator ありとなしの `oneOf`、`anyOf`、`oneOf` のプロパティ、`mapping` つきの discriminator) を作り、本家で生成して `tools/cmp.mjs` で比較できるようにします。Java と TypeScript の実装より先にやります。
+2. **基準となる本家の出力を用意する。** Java と TypeScript は openapi-generator 7.26.0 と完全に一致させる必要がありますが、本家が `oneOf` / `anyOf` / `discriminator` をどう出力するかは、ここでは分かっていません。小さな仕様 (discriminator ありとなしの `oneOf`、`anyOf`、`oneOf` のプロパティ、`mapping` つきの discriminator) を作り、本家で生成して `tools/cmp.mjs` で比較できるようにします。Java と TypeScript の実装より先にやります。
 3. **Python** (独自設計なので、基準の出力は不要)。pydantic v2 での対応案:
    - `oneOf` / `anyOf` → モデル、リクエストボディ、レスポンス、プロパティのどこでも union 型 (`A | B`)。
    - `discriminator` あり → `Annotated[A | B, Field(discriminator="kind")]`。`mapping` があれば反映する。
@@ -55,7 +55,7 @@
 
 ## 4. テストと CI
 
-- `npm test` はまだ仮のままです。全ターゲットでサンプル仕様を生成し、コミットした期待出力と比べる回帰テストを足す (公開できる仕様と基準の出力が必要。業務仕様はコミットできない)。
+- `npm test` はまだ仮のままです。全ターゲットでサンプル仕様を生成し、コミットした期待出力と比べる回帰テストを足す (公開の examples/kitchen-sink.yaml と examples/types.yaml は、7.26.0 の jar の出力と手作業で比べ済み。足りないのは、jar の出力をコミットすることと、比較を実行するスクリプト。業務仕様はコミットできない)。
 - Python のリクエストテスト (手書きの `_impl` を書いて FastAPI / Flask / Falcon を動かすもの) は、いまリポジトリの外にあります。テスト用の requirements ファイルとあわせて、リポジトリに入れる。
 - `--check` モード: 一時ディレクトリに生成し、コミット済みのファイルと違えば失敗にする。「生成物は人間が絶対に変更しない」を CI で守れる。
 
@@ -70,6 +70,10 @@
 
 ## 6. その他
 
-- `Generator version: 7.12.0` と `.openapi-generator/VERSION` を、設定で変えられるようにする (例: `-p generatorVersionLabel=...`)。本家の出力に合わせるためだけに出している値なので。
+- 新しい openapi-generator への追従。oag は **7.26.0** に追従しました (以前は 7.12.0)。7.12.0 と 7.17.0 の出力は、もう再現しません。必要なら、古いテンプレートを残す `generatorVersion` オプションを足します。比較は、jar を `java -jar` で直接実行して行いました。
+- 業務仕様の Java オプション (`dateLibrary=java8,interfaceOnly=true,useSwaggerAnnotations=false,useJakartaEe=true,generatePom=false`) 以外は、7.26.0 との一致を確認しておらず、公開仕様では違いが出ます: `useSwaggerAnnotations=true`、`interfaceOnly=false` (class 形式)、本家の既定の `dateLibrary` (joda。oag の既定は `java8`)、`useTags=true`、`dateLibrary=legacy`、`javax` (`useJakartaEe=false`)。`examples/kitchen-sink.yaml` と `examples/types.yaml` を、オプションの組ごとに jar で生成して、出力を揃えます。
+- 7.26.0 の細部のうち、業務仕様にも公開仕様にも出てこないために実装していないもの (本家のテンプレートを読んで確認): Java のモデル自体の `deprecated`、Java のコンテナ要素の Bean Validation (`List<@Email String>`、`List<@Valid BigDecimal>`)、読み取り専用プロパティを持つモデルを本体やパラメータにしたときの TypeScript の `Omit<Model, 'readOnlyProp'>`、モデルの Set を返すレスポンスの `new Set(...)`、`form`・`pipeDelimited`・`spaceDelimited` 以外の `deepObject` などの `style`、1 つのリクエスト / レスポンスに複数のコンテントタイプがある場合 (`contentTypeMerged`)、Java のフォームパラメータの `x-codegen-request-body-name`、oneOf (1 章を参照)。
+- Java: openapi-generator は `interfaceOnly=true` のとき、既定の `artifactId` を `openapi-jaxrs-client` にします (明示した `artifactId` が優先)。oag は常に `openapi-jaxrs-server` が既定です。生成元のソースで見ただけで、実際の出力とはまだ比べていません (`generatePom=true` のときだけ影響します)。
+- `Generator version: 7.26.0` と `.openapi-generator/VERSION` を、設定で変えられるようにする (例: `-p generatorVersionLabel=...`)。本家の出力に合わせるためだけに出している値なので。
 - Java: `nullable` なプロパティは無視している (`JsonNullable` は生成しない)。
 - `tools/cmp.mjs` のメッセージは日本語のみ。

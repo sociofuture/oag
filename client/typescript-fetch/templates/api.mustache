@@ -1,24 +1,20 @@
 {{{header}}}
 
-
 import * as runtime from '../runtime';
-{{#hasImports}}
-import type {
 {{#imports}}
-  {{name}},
-{{/imports}}
-} from '../models/index';
 import {
-{{#imports}}
+    type {{name}},
     {{name}}FromJSON,
     {{name}}ToJSON,
+} from '../models/{{name}}';
 {{/imports}}
-} from '../models/index';
-{{/hasImports}}
 
 {{#requestInterfaces}}
 export interface {{requestName}} {
 {{#requestFields}}
+    /**
+     * {{{description}}}
+     */
     {{key}}{{optional}}: {{{type}}};
 {{/requestFields}}
 }
@@ -31,12 +27,12 @@ export class {{classname}} extends runtime.BaseAPI {
 
 {{#operations}}
     /**
-     * {{{summary}}}
-{{#notes}}
-     * {{{.}}}
-{{/notes}}
+     * Creates request options for {{nickname}} without sending the request
+{{#deprecated}}
+     * @deprecated
+{{/deprecated}}
      */
-    async {{nickname}}Raw({{#hasParams}}requestParameters: {{requestName}}, {{/hasParams}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<{{{returnType}}}>> {
+    async {{nickname}}RequestOpts({{#hasParams}}requestParameters: {{requestName}}{{/hasParams}}): Promise<runtime.RequestOpts> {
 {{#requiredParams}}
         if (requestParameters['{{key}}'] == null) {
             throw new runtime.RequiredError(
@@ -50,7 +46,17 @@ export class {{classname}} extends runtime.BaseAPI {
 
 {{#queryParams}}
         if (requestParameters['{{key}}'] != null) {
+{{#isExplodeMap}}
+            for (let key of Object.keys(requestParameters['{{key}}'])) {
+                const value = (requestParameters['{{key}}'] as any)[key];
+                if (value != null) {
+                    Object.defineProperty(queryParameters, key, { value, enumerable: true, writable: true, configurable: true });
+                }
+            }
+{{/isExplodeMap}}
+{{#notExplodeMap}}
             queryParameters['{{{rawName}}}'] = {{{value}}};
+{{/notExplodeMap}}
         }
 
 {{/queryParams}}
@@ -62,7 +68,7 @@ export class {{classname}} extends runtime.BaseAPI {
 {{/contentType}}
 {{#headerParams}}
         if (requestParameters['{{key}}'] != null) {
-            headerParameters['{{{rawName}}}'] = String(requestParameters['{{key}}']);
+            headerParameters['{{{rawName}}}'] = {{{value}}};
         }
 
 {{/headerParams}}
@@ -72,7 +78,7 @@ export class {{classname}} extends runtime.BaseAPI {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
         }
 {{/isBasic}}
-{{#isToken}}
+{{#isBearer}}
         if (this.configuration && this.configuration.accessToken) {
             const token = this.configuration.accessToken;
             const tokenString = await token("{{name}}", {{{scopes}}});
@@ -81,7 +87,14 @@ export class {{classname}} extends runtime.BaseAPI {
                 headerParameters["Authorization"] = `Bearer ${tokenString}`;
             }
         }
-{{/isToken}}
+{{/isBearer}}
+{{#isOAuth}}
+        if (this.configuration && this.configuration.accessToken) {
+            // oauth required
+            headerParameters["Authorization"] = await this.configuration.accessToken("{{name}}", {{{scopes}}});
+        }
+
+{{/isOAuth}}
 {{#isApiKey}}
         if (this.configuration && this.configuration.apiKey) {
 {{#inHeader}}
@@ -91,6 +104,7 @@ export class {{classname}} extends runtime.BaseAPI {
             queryParameters["{{{keyName}}}"] = await this.configuration.apiKey("{{{keyName}}}"); // {{name}} authentication
 {{/inQuery}}
         }
+
 {{/isApiKey}}
 {{/security}}
 {{#hasFormParams}}
@@ -102,27 +116,47 @@ export class {{classname}} extends runtime.BaseAPI {
 
         let formParams: { append(param: string, value: any): any };
         let useForm = false;
-{{#isMultipart}}
+{{#fileParams}}
+        // use FormData to transmit files using content-type "multipart/form-data"
         useForm = canConsumeForm;
+{{/fileParams}}
         if (useForm) {
             formParams = new FormData();
         } else {
             formParams = new URLSearchParams();
         }
-{{/isMultipart}}
-{{^isMultipart}}
-        formParams = new URLSearchParams();
-{{/isMultipart}}
 
 {{#formParams}}
         if (requestParameters['{{key}}'] != null) {
+{{#isArray}}
+            requestParameters['{{key}}'].forEach((element) => {
+                formParams.append('{{{rawName}}}', element as any);
+            })
+{{/isArray}}
+{{#dateTime}}
+            formParams.append('{{{rawName}}}', runtime.serializeDateTime(requestParameters['{{key}}'] as any));
+{{/dateTime}}
+{{#dateOnly}}
+            formParams.append('{{{rawName}}}', runtime.serializeDate(requestParameters['{{key}}'] as any));
+{{/dateOnly}}
+{{#plain}}
             formParams.append('{{{rawName}}}', requestParameters['{{key}}'] as any);
-        }
+{{/plain}}
+{{#blob}}
+            formParams.append('{{{rawName}}}', new Blob([JSON.stringify({{{.}}})], { type: "application/json", }));
+{{/blob}}
+{{{closing}}}
 
 {{/formParams}}
 {{/hasFormParams}}
-        const response = await this.request({
-            path: {{{path}}},
+
+        let urlPath = {{{urlPath}}};
+{{#pathReplacements}}
+        urlPath = urlPath.replace('{{{token}}}', encodeURIComponent(String(requestParameters['{{key}}'])));
+{{/pathReplacements}}
+
+        return {
+            path: urlPath,
             method: '{{method}}',
             headers: headerParameters,
             query: queryParameters,
@@ -132,7 +166,23 @@ export class {{classname}} extends runtime.BaseAPI {
 {{#hasFormParams}}
             body: formParams,
 {{/hasFormParams}}
-        }, initOverrides);
+        };
+    }
+
+    /**
+{{#notes}}
+     * {{{.}}}
+{{/notes}}
+{{#summary}}
+     * {{{.}}}
+{{/summary}}
+{{#deprecated}}
+     * @deprecated
+{{/deprecated}}
+     */
+    async {{nickname}}Raw({{#hasParams}}requestParameters: {{requestName}}, {{/hasParams}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<{{{returnType}}}>> {
+        const requestOptions = await this.{{nickname}}RequestOpts({{#hasParams}}requestParameters{{/hasParams}});
+        const response = await this.request(requestOptions, initOverrides);
 
 {{#resp}}
 {{#isVoid}}
@@ -158,10 +208,15 @@ export class {{classname}} extends runtime.BaseAPI {
     }
 
     /**
-     * {{{summary}}}
 {{#notes}}
      * {{{.}}}
 {{/notes}}
+{{#summary}}
+     * {{{.}}}
+{{/summary}}
+{{#deprecated}}
+     * @deprecated
+{{/deprecated}}
      */
     async {{nickname}}({{#hasParams}}requestParameters: {{requestName}}{{#allOptional}} = {}{{/allOptional}}, {{/hasParams}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{{{returnType}}}> {
 {{#isVoid}}
@@ -175,3 +230,14 @@ export class {{classname}} extends runtime.BaseAPI {
 
 {{/operations}}
 }
+{{#enumDefs}}
+{{{lead}}}/**
+ * @export
+ */
+export const {{enumName}} = {
+{{#entries}}
+    {{key}}: {{{literal}}},
+{{/entries}}
+} as const;
+export type {{enumName}} = typeof {{enumName}}[keyof typeof {{enumName}}];
+{{/enumDefs}}

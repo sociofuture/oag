@@ -57,30 +57,36 @@ function parseOptions(str, defs = {}) {
 //   -D supportingFiles        API・モデル以外 (runtime、router、pom.xml など) だけ
 // 1 つも指定しなければ、すべて生成する。
 const GLOBAL_KEYS = { models: 'models', apis: 'apis', supportingFiles: 'supporting' };
-// 本家のオプションだが、このツールはドキュメントもテストも出さないので、指定されても何もしない
-const GLOBAL_IGNORED = new Set(['modelTests', 'modelDocs', 'apiTests', 'apiDocs']);
+// modelTests / apiTests は本家のオプションだが、oag はテストを出さないので、指定されても何もしない。
+// modelDocs / apiDocs (既定 true) は docs/ の出力を止める。
+const GLOBAL_IGNORED = new Set(['modelTests', 'apiTests']);
 
 function parseGlobalProperties(list) {
   const selection = {}; // 種類 -> true (全部) | Set (名前で絞る)
+  const docs = { modelDocs: true, apiDocs: true };
   for (const item of list ?? []) {
     for (const kv of item.split(',').filter(Boolean)) {
       const i = kv.indexOf('=');
       const key = (i < 0 ? kv : kv.slice(0, i)).trim();
       const value = i < 0 ? '' : kv.slice(i + 1).trim();
       if (GLOBAL_IGNORED.has(key)) continue;
+      if (key in docs) { docs[key] = value !== 'false'; continue; }
       const kind = GLOBAL_KEYS[key];
       if (!kind) throw new Error(t('unknown_global_property', { name: key, valid: Object.keys(GLOBAL_KEYS).join(', ') }));
       if (value === 'false') continue;
       selection[kind] = value === '' || value === 'true' ? true : new Set(value.split(':').filter(Boolean));
     }
   }
-  return Object.keys(selection).length ? selection : null;
+  return { selection: Object.keys(selection).length ? selection : null, docs };
 }
 
 /** want(種類, 名前?): その種類 (と名前) を生成するか。名前は文字列か、別名を含む配列 */
-function createWant(selection) {
+function createWant({ selection, docs }) {
   const matched = new Set(); // 名前で絞ったうち、実際に一致したもの
   const want = (kind, names) => {
+    // docs/ は、モデル (API) が選ばれていて、modelDocs (apiDocs) が false でないときだけ出す
+    if (kind === 'modelDocs') return docs.modelDocs && want('models');
+    if (kind === 'apiDocs') return docs.apiDocs && want('apis');
     if (!selection) return true;
     const sel = selection[kind];
     if (!sel) return false;

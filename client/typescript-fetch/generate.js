@@ -4,8 +4,8 @@ import { t } from '../../lib/i18n.js';
 
 export const meta = {
   description: {
-    en: 'TypeScript fetch client (same output as the typescript-fetch of openapi-generator 7.12.0)',
-    ja: 'TypeScript fetch クライアント (openapi-generator 7.12.0 の typescript-fetch と同じ出力)',
+    en: 'TypeScript fetch client (same output as the typescript-fetch of openapi-generator 7.26.0)',
+    ja: 'TypeScript fetch クライアント (openapi-generator 7.26.0 の typescript-fetch と同じ出力)',
   },
   options: {},
 };
@@ -51,8 +51,12 @@ export default async function generate({ spec, operations, render, write: rawWri
   // index.ts (バレル) は、実際に生成する分だけを並べる。
   const wantedModels = models.filter((m) => want('models', [m.classname, m.schemaName]));
   for (const m of wantedModels) {
-    const view = { ...common, ...m, vars: m.vars?.map((v) => ({ ...v, typeDoc: `{${v.type.replace(/ \| null$/, '')}}` })) };
+    const view = { ...common, ...m };
     write(`models/${m.classname}.ts`, render(m.isEnum ? 'enum' : 'model', view), 'models');
+    // docs/<Model>.md。-D modelDocs=false で出さない
+    if (want('modelDocs')) {
+      write(`docs/${m.classname}.md`, render('modelDoc', { ...view, vars: m.vars ?? [], descBlock: m.docDescription ? `${m.docDescription}\n` : '', eof: '\n\n' }), 'models');
+    }
   }
   // 名前で絞った結果が空なら、中身のない index.ts は出さない
   if (wantedModels.length > 0 || models.length === 0) {
@@ -61,7 +65,14 @@ export default async function generate({ spec, operations, render, write: rawWri
 
   const apis = ts.buildApis(operations, modelNames);
   const wantedApis = apis.filter((a) => want('apis', [a.classname, a.classname.replace(/Api$/, '')]));
-  for (const api of wantedApis) write(`apis/${api.classname}.ts`, render('api', { ...common, ...api }), 'apis');
+  const docBasePath = (spec.servers?.[0]?.url ?? 'http://localhost').replace(/\/+$/, '');
+  for (const api of wantedApis) {
+    write(`apis/${api.classname}.ts`, render('api', { ...common, ...api }), 'apis');
+    // docs/<Api>.md。-D apiDocs=false で出さない
+    if (want('apiDocs')) {
+      write(`docs/${api.classname}.md`, render('apiDoc', { ...api, basePath: docBasePath, configOpen: 'const config = new Configuration({ ' }), 'apis');
+    }
+  }
   if (wantedApis.length > 0 || apis.length === 0) {
     write('apis/index.ts', render('index', { exports: wantedApis.map((a) => `./${a.classname}`).sort() }), 'apis');
   }
@@ -81,6 +92,6 @@ export default async function generate({ spec, operations, render, write: rawWri
   if (want('supporting')) {
     const sorted = [...files].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
     rawWrite('.openapi-generator/FILES', sorted.join('\n') + '\n', 'supporting');
-    rawWrite('.openapi-generator/VERSION', '7.12.0\n', 'supporting');
+    rawWrite('.openapi-generator/VERSION', '7.26.0\n', 'supporting');
   }
 }

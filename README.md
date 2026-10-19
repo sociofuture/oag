@@ -11,7 +11,7 @@ It is meant as a replacement for `openapi-generator-cli`. It needs no Java — N
    To change something, fix the OpenAPI spec and regenerate. Hand-written code lives apart from the generated code (for example in `_impl`).
 2. **Regeneration is easy.**
    Every run overwrites all target files. Nothing from a previous run is deleted (files for schemas removed from the spec stay; delete them by hand if needed).
-3. **Java JAX-RS and TypeScript fetch produce the same output as openapi-generator 7.12.0.**
+3. **Java JAX-RS and TypeScript fetch produce the same output as openapi-generator 7.26.0.**
    The Python targets (FastAPI / Flask / Falcon) have their own design.
 4. **Targets are easy to add and change.** Just put a directory under `server/<name>/` or `client/<name>/`.
 
@@ -152,7 +152,7 @@ node oag.js generate -i openapi/api.yml -g client/typescript-fetch -o ./out -D a
 - Several names can be given as a comma-separated list or by repeating the option: `-D apis,models=Pet` is the same as `-D apis -D models=Pet`.
 - A name that matches nothing prints a warning.
 - The index files list only what is generated, so `-D models=Pet` writes a `models/index.ts` with `Pet` only. A model that refers to a model you did not select has a dangling import; that is up to you.
-- `modelTests`, `modelDocs`, `apiTests` and `apiDocs` (openapi-generator options) are accepted and ignored, because oag generates no tests or docs.
+- `modelTests` and `apiTests` (openapi-generator options) are accepted and ignored, because oag generates no tests. `modelDocs=false` / `apiDocs=false` turn off the `docs/*.md` files of `client/typescript-fetch` (written by default, like openapi-generator).
 - The Python targets write all models into one `models.py`, so models cannot be picked by name there: if only some of the names match, a warning is printed and all models are generated; if none match, `models.py` is not written.
 - `.openapi-generator/FILES` and `VERSION` (TypeScript) belong to `supportingFiles`.
 
@@ -177,8 +177,8 @@ The language only affects what the command prints. **The generated files are ide
 
 | Target | Description | Output reference |
 | --- | --- | --- |
-| `server/jax-rs` | Java JAX-RS server (jaxrs-spec compatible) | Identical to openapi-generator 7.12.0 |
-| `client/typescript-fetch` | TypeScript fetch client | Identical to openapi-generator 7.12.0 |
+| `server/jax-rs` | Java JAX-RS server (jaxrs-spec compatible) | Identical to openapi-generator 7.26.0 |
+| `client/typescript-fetch` | TypeScript fetch client | Identical to openapi-generator 7.26.0 |
 | `server/python-fastapi` | Python FastAPI server | Own design |
 | `server/python-flask` | Python Flask server | Own design |
 | `server/python-falcon` | Python Falcon server | Own design |
@@ -252,7 +252,7 @@ Every target goes through the following before generation.
 
 ## server/jax-rs
 
-A Java JAX-RS (jaxrs-spec) server stub. It has been confirmed that the output is **identical for every file** to openapi-generator 7.12.0 on a real business spec (not public); the comparison ignores only the `@Generated` timestamp. See [Verification](#verification-for-development) for the scope of that confirmation.
+A Java JAX-RS (jaxrs-spec) server stub. It has been confirmed that the output is **identical for every file** to openapi-generator 7.26.0 on a real business spec (not public), and on the public specs `examples/kitchen-sink.yaml` and `examples/types.yaml`; the comparison ignores only the `@Generated` timestamp. See [Verification](#verification-for-development) for the scope of that confirmation.
 
 ### Options (`-p`)
 
@@ -267,6 +267,8 @@ A Java JAX-RS (jaxrs-spec) server stub. It has been confirmed that the output is
 | `useSwaggerAnnotations` | `true` | Add `io.swagger.annotations` |
 | `useTags` | `false` | Split API classes by tag. When `false`, split by the first path segment |
 | `interfaceOnly` | `false` | Generate the API as an interface |
+| `generateRootResources` | `true` | Write `RestApplication` and `RestResourceRoot`. Only useful if `interfaceOnly=true` (they are always written otherwise). Same as openapi-generator 7.26.0 |
+| `openApiNullable` | `true` | Import `JsonNullable` (`org.openapitools.jackson.nullable`) in the models |
 | `generatePom` | `true` | Write `pom.xml` |
 | `groupId` / `artifactId` / `artifactVersion` | `org.openapitools` / `openapi-jaxrs-server` / `1.0.0` | Values in `pom.xml` |
 | `hideGenerationTimestamp` | `false` | Omit the `date` in `@Generated` |
@@ -275,35 +277,38 @@ A Java JAX-RS (jaxrs-spec) server stub. It has been confirmed that the output is
 
 - By default one API class is created per first path segment (`/pet` → `PetApi`, `/health-check` → `HealthCheckApi`).
 - The return type is the schema type (`void` if none). Only with `interfaceOnly=false` is a body that returns a `Response` (`"magic!"`) emitted.
-- `RestApplication` and `RestResourceRoot` are written even with `interfaceOnly`. `@ApplicationPath` is the path of `servers[0].url`.
-- `@Generated` contains `Generator version: 7.12.0` and the run time. This is a fixed string used to match openapi-generator exactly; it does not mean this tool is openapi-generator.
+- `RestApplication` and `RestResourceRoot` are written when `interfaceOnly=false` or `generateRootResources=true` (the default), as openapi-generator 7.26.0 does; `generateRootResources=false` turns them off with `interfaceOnly=true`. `@ApplicationPath` is the path of `servers[0].url`.
+- Operations in an API class are in operationId order, and the class-level `@Path` is the longest path prefix shared by its operations (the whole path if there is only one operation, which then has no method-level `@Path`).
+- `@Generated` contains `Generator version: 7.26.0` and the run time. This is a fixed string used to match openapi-generator exactly; it does not mean this tool is openapi-generator.
 
 ---
 
 ## client/typescript-fetch
 
-A TypeScript fetch client. It has been confirmed that the output is **identical for every file** to `typescript-fetch` of openapi-generator 7.12.0 (no options) on a real business spec (not public). See [Verification](#verification-for-development) for the scope of that confirmation.
+A TypeScript fetch client. It has been confirmed that the output is **identical for every file** to `typescript-fetch` of openapi-generator 7.26.0 (no options) on a real business spec (not public), and on the public specs `examples/kitchen-sink.yaml` and `examples/types.yaml`. See [Verification](#verification-for-development) for the scope of that confirmation.
 
 There are no options.
 
 ### Output
 
 ```
-apis/<Tag>Api.ts        One API class per tag. Operations are in operationId order
+apis/<Tag>Api.ts        One API class per tag. Operations are in operationId order, each with `…Raw()` and `…RequestOpts()` methods
 apis/index.ts
 models/<Model>.ts       Interface plus FromJSON / ToJSON functions
 models/index.ts
-runtime.ts              BASE_PATH is servers[0].url
+runtime.ts              BASE_PATH is servers[0].url. Includes the date helpers (parseDate, serializeDate, ...)
 index.ts
 .openapi-generator-ignore
 .openapi-generator/FILES      List of generated files
-.openapi-generator/VERSION    Fixed to 7.12.0
+docs/<Model>.md         Model documentation (like openapi-generator; turn off with `-D modelDocs=false`)
+docs/<Tag>Api.md        API documentation with examples (turn off with `-D apiDocs=false`)
+.openapi-generator/VERSION    Fixed to 7.26.0
 ```
 
 - Property names are lowerCamelCase; JSON keys keep their original names (`PetName` → `petName`).
-- Dates (`date` / `date-time`) are `Date`; `toJSON` of `date` is `toISOString().substring(0,10)`.
+- Dates (`date` / `date-time`) are `Date`, and go through `parseDate` / `parseDateTime` / `serializeDate` / `serializeDateTime` of `runtime.ts`.
 - A required, `nullable` property has the type `T | null` (not in the JSDoc `@type`). If an array item is `nullable`, it is `Array<T | null>`.
-- The order of model imports reproduces the iteration order of Java's `HashSet` (neither alphabetical nor order of appearance).
+- The order of model imports reproduces the iteration order of Java's `HashSet` filled in alphabetical order (neither alphabetical nor order of appearance).
 - The three files in `.openapi-generator/` are written with the same content as openapi-generator, so regeneration does not show up as a git diff.
 
 ---
@@ -534,13 +539,13 @@ Messages that `generate.js` shows to the user should go through `t(key, params)`
 
 ## Verification (for development)
 
-If you have the output of openapi-generator 7.12.0, you can compare it file by file. Only the `@Generated` timestamp is ignored.
+If you have the output of openapi-generator 7.26.0, you can compare it file by file. Only the `@Generated` timestamp is ignored.
 
 ```bash
 node tools/cmp.mjs <openapi-generator output> <oag output> [number of diff files to show] [name filter]
 ```
 
-For Java JAX-RS and TypeScript fetch, it was confirmed on a real business spec (not public) that **every file is identical** to the output of openapi-generator. That spec and its output are not public, so they are not in this repository. To check against your own spec, generate the same spec with openapi-generator and compare with `tools/cmp.mjs`.
+For Java JAX-RS and TypeScript fetch, it was confirmed on a real business spec (not public) that **every file is identical** to the output of openapi-generator 7.26.0, run directly from its jar. The two public specs in this repository, `examples/kitchen-sink.yaml` (petstore-like, with authentication, forms, enums, nullable and so on) and `examples/types.yaml` (one case of every parameter, property and body type), were compared the same way: all files are identical for Java with the options of the business spec (`dateLibrary=java8,interfaceOnly=true,useSwaggerAnnotations=false,useJakartaEe=true,generatePom=false` and the two packages) and for TypeScript with no options. The business spec and its output are not public, so they are not in this repository. To check against your own spec, generate the same spec with openapi-generator and compare with `tools/cmp.mjs`.
 
 The Python targets were checked with the same business spec and with petstore plus authentication.
 
@@ -556,7 +561,7 @@ Planned work and the details of each gap are in [TODO.md](TODO.md).
 
 - `oneOf` / `anyOf` / `discriminator` are not supported. A schema that is only `oneOf` / `anyOf` becomes `Object` / `any` / `Any`; with `properties`, only the properties are generated (Java prints a warning).
 - A `$ref` to a URL is not supported (only local files are bundled).
-- The match with openapi-generator is confirmed only for the features used by the business spec above. Path/query/header parameters, enums, descriptions, `useSwaggerAnnotations=true`, `interfaceOnly=false` and so on are implemented, but their match with openapi-generator's output is unverified.
+- The match with openapi-generator 7.26.0 is confirmed for the Java options of the business spec above and for TypeScript with no options. Other Java options (`useSwaggerAnnotations=true`, `interfaceOnly=false`, `useTags=true`, `dateLibrary=legacy`, the default `javax`) are implemented, but their output still differs from openapi-generator on the public specs and has not been brought into line.
 - Authentication (`security`) of the Python servers does not distinguish between schemes.
 - The comments, docstrings and error messages written inside the generated Python files are in Japanese. `--lang` does not change them, so that the output stays the same on every machine.
-- The `7.12.0` in the output of `server/jax-rs` and `client/typescript-fetch` is a fixed value used to match openapi-generator exactly.
+- The `7.26.0` in the output of `server/jax-rs` and `client/typescript-fetch` is a fixed value used to match openapi-generator exactly.

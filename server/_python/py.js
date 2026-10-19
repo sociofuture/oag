@@ -8,6 +8,8 @@ const KEYWORDS = new Set(('False None True and as assert async await break class
 
 const str = (s) => JSON.stringify(String(s ?? '')); // Python の文字列リテラルとしても有効
 const oneLine = (s) => String(s ?? '').replace(/\s*\r?\n\s*/g, ' ').trim();
+// docstring ("""...""") に入れる説明: \ と """ と末尾の " がそのままだと構文エラーになる
+const docstring = (s) => oneLine(s).replace(/\\/g, '\\\\').replace(/"""/g, '\\"\\"\\"').replace(/"$/, '\\"');
 
 /** Python の識別子にする (予約語・数字始まりは _ を付ける) */
 export function pyIdent(name) {
@@ -132,7 +134,7 @@ export function createPy(spec, { fileType = 'UploadFile', modelType = 'pydantic'
       const k = kind(schema);
       const classname = className(schemaName);
       if (k === 'enum') {
-        enums.push({ classname, base: enumBase(schema), description: oneLine(schema.description), members: enumMembers(schema.enum) });
+        enums.push({ classname, base: enumBase(schema), description: docstring(schema.description), members: enumMembers(schema.enum) });
       } else if (k === 'model') {
         const flat = flatten(schema);
         const fields = [];
@@ -148,7 +150,7 @@ export function createPy(spec, { fileType = 'UploadFile', modelType = 'pydantic'
           let enumRef = null;
           if (!ps.$ref && resolved.enum && resolved.type !== 'array') {
             enumRef = `${classname}${camelize(pn)}Enum`;
-            enums.push({ classname: enumRef, base: enumBase(resolved), description: oneLine(resolved.description), members: enumMembers(resolved.enum) });
+            enums.push({ classname: enumRef, base: enumBase(resolved), description: docstring(resolved.description), members: enumMembers(resolved.enum) });
             type = resolved.nullable ? `${enumRef} | None` : enumRef;
           } else {
             type = typeOf(ps, ctx);
@@ -174,7 +176,7 @@ export function createPy(spec, { fileType = 'UploadFile', modelType = 'pydantic'
           fields.push({ line });
         }
         models.push({
-          classname, schemaName, description: oneLine(flat.description), fields, hasFields: fields.length > 0,
+          classname, schemaName, description: docstring(flat.description), fields, hasFields: fields.length > 0,
           needsAlias, // alias を使うモデルは Python 名でも値を受け取れるようにする
         });
       }

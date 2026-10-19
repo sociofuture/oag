@@ -1,6 +1,11 @@
 {{{header}}}
 
+{{#hasDate}}
+import { mapValues, parseDate, parseDateTime, serializeDate, serializeDateTime } from '../runtime';
+{{/hasDate}}
+{{^hasDate}}
 import { mapValues } from '../runtime';
+{{/hasDate}}
 {{#imports}}
 import type { {{name}} } from './{{name}}';
 import {
@@ -22,23 +27,27 @@ export interface {{classname}} {
 {{#vars}}
     /**
      * {{{description}}}
-     * @type {{{typeDoc}}}
-     * @memberof {{classname}}
+{{#deprecated}}
+     * @deprecated
+{{/deprecated}}
      */
-    {{name}}{{optional}}: {{{type}}};
+    {{#readOnly}}readonly {{/readOnly}}{{name}}{{optional}}: {{{type}}};
 {{/vars}}
 }
 {{#innerEnums}}
-
+{{{lead}}}
 {{> modelInnerEnum}}
 {{/innerEnums}}
+{{#hasInnerEnums}}
+
+{{/hasInnerEnums}}
 
 /**
  * Check if a given object implements the {{classname}} interface.
  */
 export function instanceOf{{classname}}(value: object): value is {{classname}} {
 {{#requiredVars}}
-    if (!('{{name}}' in value) || value['{{name}}'] === undefined) return false;
+    {{{instanceCheck}}}
 {{/requiredVars}}
     return true;
 }
@@ -63,16 +72,16 @@ export function {{classname}}ToJSON(json: any): {{classname}} {
     return {{classname}}ToJSONTyped(json, false);
 }
 
-export function {{classname}}ToJSONTyped(value?: {{classname}} | null, ignoreDiscriminator: boolean = false): any {
+export function {{classname}}ToJSONTyped(value?: {{#hasReadOnly}}Omit<{{classname}}, {{{readOnlyOmit}}}>{{/hasReadOnly}}{{^hasReadOnly}}{{classname}}{{/hasReadOnly}} | null, ignoreDiscriminator: boolean = false): any {
     if (value == null) {
         return value;
     }
 
     return {
 {{{sp8}}}
-{{#vars}}
+{{#toJsonVars}}
         '{{baseName}}': {{{toJson}}},
-{{/vars}}
+{{/toJsonVars}}
     };
 }
 

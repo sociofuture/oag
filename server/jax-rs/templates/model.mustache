@@ -14,8 +14,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-
-
+{{#openApiNullable}}
+import org.openapitools.jackson.nullable.JsonNullable;
+{{/openApiNullable}}
 
 {{#description}}
 /**
@@ -25,13 +26,21 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @ApiModel(description = "{{{descriptionJava}}}")
 {{/swagger}}
 {{/description}}
+{{^description}}
+
+{{/description}}
+
 @JsonTypeName("{{schemaName}}")
 {{{generatedAnnotation}}}
 public class {{classname}}   {
-{{#innerEnums}}
-{{> modelInnerEnum}}
-{{/innerEnums}}
 {{#vars}}
+{{#innerEnum}}
+{{> modelInnerEnum}}
+
+{{/innerEnum}}
+{{#deprecated}}
+  @Deprecated
+{{/deprecated}}
   private {{#fieldValid}}@Valid {{/fieldValid}}{{{datatype}}} {{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{/vars}}
 
@@ -56,12 +65,30 @@ public class {{classname}}   {
 {{#description}}
    * {{{.}}}
 {{/description}}
+{{#minimum}}
+   * minimum: {{{.}}}
+{{/minimum}}
+{{#maximum}}
+   * maximum: {{{.}}}
+{{/maximum}}
+{{#deprecated}}
+   * @deprecated
+{{/deprecated}}
    **/
+{{#deprecated}}
+  @Deprecated
+{{/deprecated}}
   public {{classname}} {{name}}({{{datatype}}} {{name}}) {
     this.{{name}} = {{name}};
     return this;
   }
 
+{{#deprecated}}
+  /**
+   * @deprecated
+   */
+  @Deprecated
+{{/deprecated}}
 {{{sp2}}}
 {{#swagger}}
   @ApiModelProperty({{#required}}required = true, {{/required}}value = "{{{descriptionJava}}}")
@@ -71,13 +98,28 @@ public class {{classname}}   {
     return {{name}};
   }
 
+{{#deprecated}}
+  /**
+   * @deprecated
+   */
+  @Deprecated
+{{/deprecated}}
   @JsonProperty({{#required}}required = true, value = {{/required}}"{{baseName}}")
+{{#isSet}}
+  @JsonDeserialize(as = LinkedHashSet.class)
+{{/isSet}}
   public void {{setter}}({{{datatype}}} {{name}}) {
     this.{{name}} = {{name}};
   }
 {{#isContainer}}
 
-  public {{classname}} add{{Name}}Item({{#isMap}}String key, {{/isMap}}{{{itemType}}} {{name}}Item) {
+{{#deprecated}}
+  /**
+   * @deprecated
+   */
+  @Deprecated
+{{/deprecated}}
+  public {{classname}} {{#isMap}}put{{/isMap}}{{^isMap}}add{{/isMap}}{{Name}}Item({{#isMap}}String key, {{/isMap}}{{{itemType}}} {{name}}Item) {
     if (this.{{name}} == null) {
       this.{{name}} = new {{containerImpl}}<>();
     }
@@ -91,6 +133,12 @@ public class {{classname}}   {
     return this;
   }
 
+{{#deprecated}}
+  /**
+   * @deprecated
+   */
+  @Deprecated
+{{/deprecated}}
   public {{classname}} remove{{Name}}Item({{#isMap}}String key{{/isMap}}{{^isMap}}{{{itemType}}} {{name}}Item{{/isMap}}) {
     {{#isMap}}
     if (this.{{name}} != null) {
@@ -121,7 +169,7 @@ public class {{classname}}   {
     }
 {{#hasVars}}
     {{classname}} {{lcClassname}} = ({{classname}}) o;
-    return {{#vars}}Objects.equals(this.{{name}}, {{lcClassname}}.{{name}}){{{eqSep}}}{{/vars}}
+    return {{#vars}}{{eqFn}}.equals(this.{{name}}, {{lcClassname}}.{{name}}){{{eqSep}}}{{/vars}}
 {{/hasVars}}
 {{^hasVars}}
     return true;
@@ -130,7 +178,7 @@ public class {{classname}}   {
 
   @Override
   public int hashCode() {
-    return Objects.hash({{#vars}}{{name}}{{hashSep}}{{/vars}});
+    return Objects.hash({{#vars}}{{{hashExpr}}}{{hashSep}}{{/vars}});
   }
 
   @Override
@@ -139,7 +187,7 @@ public class {{classname}}   {
     sb.append("class {{classname}} {\n");
 {{{sp4}}}
 {{#vars}}
-    sb.append("    {{name}}: ").append(toIndentedString({{name}})).append("\n");
+    sb.append("    {{name}}: ").append({{{toStrExpr}}}).append("\n");
 {{/vars}}
     sb.append("}");
     return sb.toString();
@@ -150,12 +198,8 @@ public class {{classname}}   {
    * (except the first line).
    */
   private String toIndentedString(Object o) {
-    if (o == null) {
-      return "null";
-    }
-    return o.toString().replace("\n", "\n    ");
+    return o == null ? "null" : o.toString().replace("\n", "\n    ");
   }
 
 
 }
-

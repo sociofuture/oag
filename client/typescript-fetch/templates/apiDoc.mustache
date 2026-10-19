@@ -1,0 +1,105 @@
+# {{classname}}
+
+All URIs are relative to *{{{basePath}}}*
+
+| Method | HTTP request | Description |
+|------------- | ------------- | -------------|
+{{#operations}}
+| [**{{nickname}}**]({{classname}}.md#{{doc.anchor}}) | **{{method}}** {{{rawPath}}} | {{{summary}}} |
+{{/operations}}
+
+
+{{#operations}}
+
+## {{nickname}}
+
+> {{{doc.signature}}}
+
+{{{summary}}}
+
+{{#notes}}
+{{{.}}}
+
+{{/notes}}
+### Example
+
+```ts
+import {
+  Configuration,
+  {{classname}},
+} from '';
+import type { {{doc.requestName}} } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+{{#doc.hasConfig}}
+  {{{configOpen}}}
+{{#doc.configLines}}
+    {{{line}}}
+{{/doc.configLines}}
+  });
+  const api = new {{classname}}(config);
+{{/doc.hasConfig}}
+{{^doc.hasConfig}}
+  const api = new {{classname}}();
+{{/doc.hasConfig}}
+
+{{#doc.hasExample}}
+  const body = {
+{{#doc.example}}
+    // {{{comment}}}
+    {{key}}: {{{value}}},
+{{/doc.example}}
+  } satisfies {{doc.requestName}};
+
+{{/doc.hasExample}}
+  try {
+    const data = await api.{{nickname}}({{#doc.hasExample}}body{{/doc.hasExample}});
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+{{#doc.hasParamsDoc}}
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+{{#doc.params}}
+| **{{key}}** | {{{typeCell}}} | {{{desc}}} | {{{notes}}}|
+{{/doc.params}}
+{{/doc.hasParamsDoc}}
+{{^doc.hasParamsDoc}}
+This endpoint does not need any parameter.
+{{/doc.hasParamsDoc}}
+
+### Return type
+
+{{{doc.returnDoc}}}
+
+### Authorization
+
+{{{doc.authorization}}}
+
+### HTTP request headers
+
+- **Content-Type**: {{{doc.contentType}}}
+- **Accept**: {{{doc.accept}}}
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+{{#doc.responses}}
+| **{{code}}** | {{{description}}} |  {{{headers}}}  |
+{{/doc.responses}}
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+{{/operations}}

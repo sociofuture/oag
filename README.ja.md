@@ -11,7 +11,7 @@ OpenAPI (3.x) の YAML から、サーバー/クライアントのスタブを�
    変更したいときは OpenAPI 仕様を直して再生成します。手書きのコードは生成物とは別の場所 (`_impl` など) に置きます。
 2. **再生成が簡単に行える。**
    生成は毎回、対象ファイルをすべて上書きします。前回の生成物を消す処理はありません (仕様から消えたスキーマのファイルは残ります。必要なら手で消してください)。
-3. **Java JAX-RS と TypeScript fetch は、openapi-generator 7.12.0 と同じ出力。**
+3. **Java JAX-RS と TypeScript fetch は、openapi-generator 7.26.0 と同じ出力。**
    Python 系 (FastAPI / Flask / Falcon) は独自設計です。
 4. **ターゲットの追加・変更が簡単。** `server/<名前>/` や `client/<名前>/` にディレクトリを置くだけです。
 
@@ -152,7 +152,7 @@ node oag.js generate -i openapi/api.yml -g client/typescript-fetch -o ./out -D a
 - 複数の指定は、カンマ区切り、またはオプションの繰り返しで書けます。`-D apis,models=Pet` と `-D apis -D models=Pet` は同じです。
 - どれにも一致しない名前を指定すると、警告が出ます。
 - index ファイルには、生成するものだけが並びます。`-D models=Pet` なら、`Pet` だけの `models/index.ts` ができます。選ばなかったモデルを参照するモデルでは、その import が切れます。これは利用者側の判断です。
-- `modelTests`、`modelDocs`、`apiTests`、`apiDocs` (openapi-generator のオプション) は、受け付けて無視します。oag はテストもドキュメントも出さないためです。
+- `modelTests` と `apiTests` (openapi-generator のオプション) は、受け付けて無視します。oag はテストを出さないためです。`modelDocs=false` / `apiDocs=false` で、`client/typescript-fetch` の `docs/*.md` を止められます (既定では、本家と同じく出力します)。
 - Python のターゲットは、モデルを 1 つの `models.py` に出すので、モデルを名前で選べません。名前の一部だけが一致した場合は、警告を出してすべてのモデルを生成し、どれにも一致しなければ `models.py` は出しません。
 - TypeScript の `.openapi-generator/FILES` と `VERSION` は、`supportingFiles` に含まれます。
 
@@ -177,8 +177,8 @@ $env:OAG_LANG = "ja"                             # PowerShell (そのセッシ�
 
 | ターゲット | 内容 | 出力の基準 |
 | --- | --- | --- |
-| `server/jax-rs` | Java JAX-RS サーバー (jaxrs-spec 互換) | openapi-generator 7.12.0 と同一 |
-| `client/typescript-fetch` | TypeScript fetch クライアント | openapi-generator 7.12.0 と同一 |
+| `server/jax-rs` | Java JAX-RS サーバー (jaxrs-spec 互換) | openapi-generator 7.26.0 と同一 |
+| `client/typescript-fetch` | TypeScript fetch クライアント | openapi-generator 7.26.0 と同一 |
 | `server/python-fastapi` | Python FastAPI サーバー | 独自設計 |
 | `server/python-flask` | Python Flask サーバー | 独自設計 |
 | `server/python-falcon` | Python Falcon サーバー | 独自設計 |
@@ -252,7 +252,7 @@ examples/                  サンプル仕様 (petstore.yaml、別ファイル�
 
 ## server/jax-rs
 
-Java JAX-RS (jaxrs-spec) のサーバースタブです。openapi-generator 7.12.0 の出力と、実際の業務仕様 (非公開) で **全ファイルが一致** することを確認しています (比較は `@Generated` の日時のみ無視)。確認の範囲は [動作確認](#動作確認-開発用) を参照してください。
+Java JAX-RS (jaxrs-spec) のサーバースタブです。openapi-generator 7.26.0 の出力と、実際の業務仕様 (非公開) と、公開している `examples/kitchen-sink.yaml`・`examples/types.yaml` で **全ファイルが一致** することを確認しています (比較は `@Generated` の日時のみ無視)。確認の範囲は [動作確認](#動作確認-開発用) を参照してください。
 
 ### オプション (`-p`)
 
@@ -267,6 +267,8 @@ Java JAX-RS (jaxrs-spec) のサーバースタブです。openapi-generator 7.12
 | `useSwaggerAnnotations` | `true` | `io.swagger.annotations` を付ける |
 | `useTags` | `false` | API クラスをタグで分ける。`false` ならパスの先頭セグメントで分ける |
 | `interfaceOnly` | `false` | API を interface として生成する |
+| `generateRootResources` | `true` | `RestApplication` と `RestResourceRoot` を出力する。`interfaceOnly=true` のときだけ意味がある (それ以外は常に出力する)。openapi-generator 7.26.0 と同じ |
+| `openApiNullable` | `true` | モデルに `JsonNullable` (`org.openapitools.jackson.nullable`) の import を付ける |
 | `generatePom` | `true` | `pom.xml` を出力する |
 | `groupId` / `artifactId` / `artifactVersion` | `org.openapitools` / `openapi-jaxrs-server` / `1.0.0` | `pom.xml` の値 |
 | `hideGenerationTimestamp` | `false` | `@Generated` の `date` を出力しない |
@@ -275,35 +277,38 @@ Java JAX-RS (jaxrs-spec) のサーバースタブです。openapi-generator 7.12
 
 - 既定ではパスの先頭セグメントごとに API クラスができます (`/pet` → `PetApi`、`/health-check` → `HealthCheckApi`)。
 - 戻り値はスキーマの型です (なければ `void`)。`interfaceOnly=false` のときだけ `Response` を返す本体 (`"magic!"`) が出ます。
-- `RestApplication` と `RestResourceRoot` は `interfaceOnly` でも出力します。`@ApplicationPath` は `servers[0].url` のパスです。
-- `@Generated` には `Generator version: 7.12.0` と実行時刻が入ります。本家と同一にするための固定文字列で、このツールが本家であることを意味しません。
+- `RestApplication` と `RestResourceRoot` は、`interfaceOnly=false` か `generateRootResources=true` (既定) のときに出力します (openapi-generator 7.26.0 と同じ)。`interfaceOnly=true` で止めるには `generateRootResources=false` です。`@ApplicationPath` は `servers[0].url` のパスです。
+- API クラスの中の操作は operationId 順で、クラスの `@Path` は、操作のパスに共通する最も長い接頭辞です (操作が 1 つなら、そのパス全体になり、メソッドの `@Path` は付きません)。
+- `@Generated` には `Generator version: 7.26.0` と実行時刻が入ります。本家と同一にするための固定文字列で、このツールが本家であることを意味しません。
 
 ---
 
 ## client/typescript-fetch
 
-TypeScript の fetch クライアントです。openapi-generator 7.12.0 の `typescript-fetch` (オプションなし) の出力と、実際の業務仕様 (非公開) で **全ファイルが一致** することを確認しています。確認の範囲は [動作確認](#動作確認-開発用) を参照してください。
+TypeScript の fetch クライアントです。openapi-generator 7.26.0 の `typescript-fetch` (オプションなし) の出力と、実際の業務仕様 (非公開) と、公開している `examples/kitchen-sink.yaml`・`examples/types.yaml` で **全ファイルが一致** することを確認しています。確認の範囲は [動作確認](#動作確認-開発用) を参照してください。
 
 オプションはありません。
 
 ### 出力
 
 ```
-apis/<タグ>Api.ts       タグごとの API クラス。操作は operationId 順
+apis/<タグ>Api.ts       タグごとの API クラス。操作は operationId 順で、それぞれ `…Raw()` と `…RequestOpts()` のメソッドを持つ
 apis/index.ts
 models/<モデル>.ts       interface と FromJSON / ToJSON 関数
 models/index.ts
-runtime.ts              BASE_PATH は servers[0].url
+runtime.ts              BASE_PATH は servers[0].url。日付の関数 (parseDate、serializeDate など) を含む
 index.ts
 .openapi-generator-ignore
 .openapi-generator/FILES      生成したファイルの一覧
-.openapi-generator/VERSION    7.12.0 固定
+docs/<モデル>.md         モデルのドキュメント (本家と同じ。`-D modelDocs=false` で止める)
+docs/<タグ>Api.md        サンプルつきの API ドキュメント (`-D apiDocs=false` で止める)
+.openapi-generator/VERSION    7.26.0 固定
 ```
 
 - プロパティ名は lowerCamelCase、JSON のキーは元の名前のままです (`PetName` → `petName`)。
-- 日付 (`date` / `date-time`) は `Date` 型で、`date` の `toJSON` は `toISOString().substring(0,10)` です。
+- 日付 (`date` / `date-time`) は `Date` 型で、`runtime.ts` の `parseDate` / `parseDateTime` / `serializeDate` / `serializeDateTime` を通ります。
 - 必須で `nullable` のプロパティの型は `T | null` になります (JSDoc の `@type` には付きません)。配列の要素が `nullable` なら `Array<T | null>` です。
-- モデルの import の並びは、本家の Java `HashSet` の反復順 (名前順でも出現順でもない) を再現しています。
+- モデルの import の並びは、名前順に入れた Java の `HashSet` の反復順 (名前順でも出現順でもない) を再現しています。
 - `.openapi-generator/` の 3 ファイルは、再生成で git の差分にならないよう、本家と同じ内容を出力します。
 
 ---
@@ -534,13 +539,13 @@ export default async function generate({ spec, operations, options, render, writ
 
 ## 動作確認 (開発用)
 
-本家 (openapi-generator 7.12.0) の出力が手元にあれば、ファイル単位で比較できます。`@Generated` の日時だけは無視します。
+本家 (openapi-generator 7.26.0) の出力が手元にあれば、ファイル単位で比較できます。`@Generated` の日時だけは無視します。
 
 ```bash
 node tools/cmp.mjs <本家の出力> <oag の出力> [表示する差分ファイル数] [名前フィルタ]
 ```
 
-Java JAX-RS と TypeScript fetch は、実際の業務仕様 (非公開) で、本家の出力と **全ファイルが一致** することを確認しました。この仕様と本家の出力は非公開のため、リポジトリには含めていません。自分の仕様で確認するときは、同じ仕様を本家で生成し、`tools/cmp.mjs` で比較してください。
+Java JAX-RS と TypeScript fetch は、実際の業務仕様 (非公開) で、本家 (jar を直接実行した openapi-generator 7.26.0) の出力と **全ファイルが一致** することを確認しました。このリポジトリに含む公開の仕様 2 つ、`examples/kitchen-sink.yaml` (petstore に近く、認証・フォーム・enum・nullable などを含む) と `examples/types.yaml` (パラメータ・プロパティ・本体の型を 1 通りずつ並べたもの) も同じ方法で比べ、Java は業務仕様と同じオプション (`dateLibrary=java8,interfaceOnly=true,useSwaggerAnnotations=false,useJakartaEe=true,generatePom=false` と 2 つのパッケージ)、TypeScript はオプションなしで、全ファイルが一致しています。業務仕様と本家の出力は非公開のため、リポジトリには含めていません。自分の仕様で確認するときは、同じ仕様を本家で生成し、`tools/cmp.mjs` で比較してください。
 
 Python 系は、同じ業務仕様と、petstore に認証を足した仕様で動作確認をしました。
 
@@ -556,7 +561,7 @@ Python 系は、同じ業務仕様と、petstore に認証を足した仕様で�
 
 - `oneOf` / `anyOf` / `discriminator` は未対応です。`oneOf` / `anyOf` だけのスキーマは `Object` / `any` / `Any` になり、`properties` と併用した場合はプロパティだけ生成します (Java は警告を出します)。
 - URL への `$ref` は未対応です (取り込めるのはローカルのファイルだけです)。
-- 本家との一致を確認できているのは、上記の業務仕様が使う機能の範囲です。パスパラメータ・クエリ・ヘッダ・enum・description・`useSwaggerAnnotations=true`・`interfaceOnly=false` などは実装済みですが、本家の出力との一致は未確認です。
+- 本家 7.26.0 との一致を確認できているのは、上記の業務仕様の Java オプションと、オプションなしの TypeScript です。それ以外の Java オプション (`useSwaggerAnnotations=true`、`interfaceOnly=false`、`useTags=true`、`dateLibrary=legacy`、既定の `javax`) は実装済みですが、公開仕様での出力は本家とまだ違い、揃えていません。
 - Python サーバーの認証 (`security`) は、スキーマごとの区別をしません。
 - 生成される Python ファイルの中のコメント、docstring、エラーメッセージは日本語です。どのマシンで実行しても同じ出力になるよう、`--lang` では変わりません。
-- `server/jax-rs` と `client/typescript-fetch` の出力に含まれる `7.12.0` は、本家と同一にするための固定値です。
+- `server/jax-rs` と `client/typescript-fetch` の出力に含まれる `7.26.0` は、本家と同一にするための固定値です。

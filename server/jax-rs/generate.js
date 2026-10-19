@@ -5,8 +5,8 @@ import { t } from '../../lib/i18n.js';
 // description は文字列か { en, ja }。`oag help <target>` で現在の言語のものが表示される。
 export const meta = {
   description: {
-    en: 'Java JAX-RS server (same output as the jaxrs-spec of openapi-generator 7.12.0)',
-    ja: 'Java JAX-RS サーバー (openapi-generator 7.12.0 の jaxrs-spec と同じ出力)',
+    en: 'Java JAX-RS server (same output as the jaxrs-spec of openapi-generator 7.26.0)',
+    ja: 'Java JAX-RS サーバー (openapi-generator 7.26.0 の jaxrs-spec と同じ出力)',
   },
   options: {
     apiPackage: { default: 'org.openapitools.api', description: { en: 'Package of the API classes', ja: 'API クラスのパッケージ' } },
@@ -21,6 +21,15 @@ export const meta = {
     useSwaggerAnnotations: { default: true, description: { en: 'Add io.swagger.annotations (@Api etc.)', ja: 'io.swagger.annotations (@Api 等) を付ける' } },
     useTags: { default: false, description: { en: 'Split API classes by tag (when false, by the first path segment)', ja: 'API クラスをタグで分ける (false ならパスの先頭セグメントで分ける)' } },
     interfaceOnly: { default: false, description: { en: 'Generate the API as an interface', ja: 'API を interface として生成する' } },
+    // 本家 7.26.0 と同じ。interfaceOnly=true のときだけ意味がある (interfaceOnly=false なら常に出力する)
+    generateRootResources: {
+      default: true,
+      description: {
+        en: 'Write RestApplication and RestResourceRoot. Only useful if interfaceOnly is true (they are always written otherwise)',
+        ja: 'RestApplication と RestResourceRoot を出力する。interfaceOnly=true のときだけ意味がある (それ以外は常に出力する)',
+      },
+    },
+    openApiNullable: { default: true, description: { en: 'Import JsonNullable (org.openapitools.jackson.nullable) in the models', ja: 'モデルに JsonNullable (org.openapitools.jackson.nullable) の import を付ける' } },
     generatePom: { default: true, description: { en: 'Write pom.xml', ja: 'pom.xml を出力する' } },
     hideGenerationTimestamp: { default: false, description: { en: 'Omit the date in @Generated', ja: '@Generated の date を出力しない' } },
   },
@@ -44,6 +53,9 @@ export default async function generate({ spec, operations, options, render, writ
     invokerPackage: options.invokerPackage || options.apiPackage.replace(/\.[^.]*$/, ''),
     log,
   };
+  // RestApplication / RestResourceRoot を出すか。本家 7.26.0 と同じ: (!interfaceOnly) || generateRootResources
+  const generateRestApplication = !o.interfaceOnly || o.generateRootResources;
+
   const java = createJava(spec, o);
   const srcDir = (pkg) => `${o.sourceFolder}/${pkg.replace(/\./g, '/')}`;
 
@@ -53,10 +65,11 @@ export default async function generate({ spec, operations, options, render, writ
     jakarta: o.useJakartaEe,
     swagger: o.useSwaggerAnnotations,
     interfaceOnly: o.interfaceOnly,
+    openApiNullable: o.openApiNullable,
     // 空白だけの行はエディタに削られやすいので、テンプレートでは変数で出力する
     sp2: '  ',
     sp4: '    ',
-    generatedAnnotation: `@${o.ws}.annotation.Generated(value = "org.openapitools.codegen.languages.JavaJAXRSSpecServerCodegen", ${stamp}comments = "Generator version: 7.12.0")`,
+    generatedAnnotation: `@${o.ws}.annotation.Generated(value = "org.openapitools.codegen.languages.JavaJAXRSSpecServerCodegen", ${stamp}comments = "Generator version: 7.26.0")`,
   };
 
   // write の 3 番目の引数は種類 ('models' | 'apis' | 'supporting')。-D (--global-property) で絞られる
@@ -72,17 +85,18 @@ export default async function generate({ spec, operations, options, render, writ
     write(`${srcDir(o.apiPackage)}/${api.classname}.java`, render('api', { ...common, apiPackage: o.apiPackage, ...api }), 'apis');
   }
 
-  // 本家は interfaceOnly でも RestApplication / RestResourceRoot を出力する
-  let basePath = '/';
-  const server = spec.servers?.[0]?.url ?? '/';
-  try {
-    basePath = new URL(server, 'http://localhost').pathname.replace(/\/$/, '') || '/';
-  } catch {
-    log(t('servers_url_invalid', { server }));
+  if (generateRestApplication) {
+    let basePath = '/';
+    const server = spec.servers?.[0]?.url ?? '/';
+    try {
+      basePath = new URL(server, 'http://localhost').pathname.replace(/\/$/, '') || '/';
+    } catch {
+      log(t('servers_url_invalid', { server }));
+    }
+    const rest = { ...common, invokerPackage: o.invokerPackage, basePath };
+    write(`${srcDir(o.invokerPackage)}/RestApplication.java`, render('restApplication', rest), 'supporting');
+    write(`${srcDir(o.invokerPackage)}/RestResourceRoot.java`, render('restResourceRoot', rest), 'supporting');
   }
-  const rest = { ...common, invokerPackage: o.invokerPackage, basePath };
-  write(`${srcDir(o.invokerPackage)}/RestApplication.java`, render('restApplication', rest), 'supporting');
-  write(`${srcDir(o.invokerPackage)}/RestResourceRoot.java`, render('restResourceRoot', rest), 'supporting');
 
   if (o.generatePom) {
     write('pom.xml', render('pom', {
