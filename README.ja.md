@@ -129,7 +129,32 @@ node oag.js generate -i <spec.yaml> -g <ターゲット> -o <出力先> [-p k=v,
 | `-o` | 出力先ディレクトリ |
 | `-p` | ターゲット固有のオプション (カンマ区切りの `キー=値`)。openapi-generator の `--additional-properties` に相当 |
 | `-t` | テンプレートの上書きディレクトリ。同名の `.mustache` があればそちらを優先して使う |
+| `-D`, `--global-property` | 生成する種類を絞る: `models`、`apis`、`supportingFiles` (下記) |
 | `--lang` | メッセージの言語: `en` または `ja` (下記) |
+
+### 一部だけ生成する (`-D` / `--global-property`)
+
+openapi-generator の `--global-property` と同じ使い方です。下の名前を 1 つでも指定すると、**指定した種類だけ** を生成します。1 つも指定しなければ、すべて生成します。
+
+| 名前 | 生成するもの |
+| --- | --- |
+| `models` | モデルのクラスと、それを並べた index ファイル (`models/index.ts`) |
+| `apis` | API のクラス / interface と、それを並べた index ファイル (`apis/index.ts`、`apis/__init__.py`) |
+| `supportingFiles` | それ以外すべて: `runtime.ts`、`index.ts`、`RestApplication.java`、`pom.xml`、`router.py`、`runtime.py`、`.openapi-generator/` など |
+
+```bash
+node oag.js generate -i openapi/api.yml -g client/typescript-fetch -o ./frontend/src/openapi -D models
+node oag.js generate -i openapi/api.yml -g server/jax-rs -o ./backend-java -D apis,models=Pet:Tag
+node oag.js generate -i openapi/api.yml -g client/typescript-fetch -o ./out -D apis -D supportingFiles
+```
+
+- `=名前:名前` を付けると、名前で選べます (名前は `:` で区切ります)。モデルは、クラス名またはスキーマ名 (`Pet`) で一致します。API は、クラス名、または `Api` を除いた名前 (`PetApi` / `Pet`) です。Python のターゲットは操作ごとに API があるので、`AddPetApi`、`AddPet`、`addPet` のどれでも指定できます。
+- 複数の指定は、カンマ区切り、またはオプションの繰り返しで書けます。`-D apis,models=Pet` と `-D apis -D models=Pet` は同じです。
+- どれにも一致しない名前を指定すると、警告が出ます。
+- index ファイルには、生成するものだけが並びます。`-D models=Pet` なら、`Pet` だけの `models/index.ts` ができます。選ばなかったモデルを参照するモデルでは、その import が切れます。これは利用者側の判断です。
+- `modelTests`、`modelDocs`、`apiTests`、`apiDocs` (openapi-generator のオプション) は、受け付けて無視します。oag はテストもドキュメントも出さないためです。
+- Python のターゲットは、モデルを 1 つの `models.py` に出すので、モデルを名前で選べません。名前の一部だけが一致した場合は、警告を出してすべてのモデルを生成し、どれにも一致しなければ `models.py` は出しません。
+- TypeScript の `.openapi-generator/FILES` と `VERSION` は、`supportingFiles` に含まれます。
 
 ### メッセージの言語
 
@@ -489,14 +514,18 @@ export const meta = {
   },
 };
 
-export default async function generate({ spec, operations, options, render, write, log }) {
+export default async function generate({ spec, operations, options, render, write, want, log }) {
   // spec        : 読み込み済みの OpenAPI。インラインスキーマは昇格済み
   // operations  : { path, method, operationId, tags, summary, description, deprecated,
   //                 parameters, requestBody, responses, security, raw } の配列
   //               ($ref は解決済み。スキーマ内の $ref はモデル名を保つため残る)
   // options     : -p の値 (既定値を含む)
   // render(name, view) : テンプレートを描画する (name は拡張子なし)
-  // write(relPath, content) : 出力先からの相対パスに書く。出力先の外には書けない
+  // write(relPath, content, kind) : 出力先からの相対パスに書く。出力先の外には書けない。
+  //               kind は 'models' | 'apis' | 'supporting' (既定)。-D で選ばれていない種類は書かない
+  //               (その場合は false を返す)
+  // want(kind, names?) : -D でその種類 (と、指定があればその名前のどれか) が選ばれているか。
+  //               項目を飛ばすときと、index ファイルに生成するものだけを並べるときに使う
   // log(message) : 警告の表示
 }
 ```

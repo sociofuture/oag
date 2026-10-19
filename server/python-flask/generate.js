@@ -30,9 +30,9 @@ function extractLine(p) {
   return `${p.pyName} = parse(${p.rtype}, ${src}, ${n}, "${p.in === 'form' ? 'form' : p.in}"${opt})`;
 }
 
-export default async function generate({ spec, operations, options, render, write: rawWrite, log }) {
+export default async function generate({ spec, operations, options, render, write: rawWrite, want, log }) {
   const write = guardWrite(rawWrite, options.implPackage);
-  const base = writeBase({ spec, operations, options, render, write, fileType: 'Any' });
+  const base = writeBase({ spec, operations, options, render, write, fileType: 'Any', want, log });
 
   const routes = base.ops.map((op) => {
     let returnLine;

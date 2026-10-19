@@ -36,11 +36,11 @@ export const commonOptions = {
 export function guardWrite(rawWrite, implPackage) {
   const inside = /^\.(?!\.)/.test(implPackage);
   const implDir = inside ? implPackage.replace(/^\./, '').replace(/\./g, '/') : null;
-  return (rel, content) => {
+  return (rel, content, kind) => {
     if (implDir && (rel === implDir || rel.startsWith(implDir + '/'))) {
       throw new Error(t('impl_dir_guard', { path: rel, dir: implDir }));
     }
-    rawWrite(rel, content);
+    return rawWrite(rel, content, kind);
   };
 }
 
@@ -60,7 +60,7 @@ export function routerPrefix(spec, options, log) {
  * fileType: ファイルパラメータの型 (FastAPI: 'UploadFile' / それ以外: 'Any')
  * pydanticAlias: dataclass のとき、JSON 名と違うフィールド名を pydantic の alias でも示す (FastAPI は metadata を読まないため)
  */
-export function writeBase({ spec, operations, options, render, write, fileType, pydanticAlias = false }) {
+export function writeBase({ spec, operations, options, render, write, fileType, pydanticAlias = false, want = () => true, log = () => {} }) {
   const modelType = options.modelType;
   if (!MODEL_TYPES.includes(modelType)) {
     throw new Error(t('unknown_model_type', { value: modelType, valid: MODEL_TYPES.join(', ') }));
@@ -68,15 +68,22 @@ export function writeBase({ spec, operations, options, render, write, fileType, 
   const py = createPy(spec, { fileType, modelType, pydanticAlias });
   const common = { generated: GENERATED, isPydantic: modelType === 'pydantic', isDataclass: modelType === 'dataclass' };
 
+  // write の 3 番目の引数は種類 ('models' | 'apis' | 'supporting')。-D (--global-property) で絞られる。
+  // models.py は 1 ファイルなので、名前での絞り込みはできない。指定した名前が 1 つも無ければ出さず、
+  // 一部だけ一致した場合は (参照が壊れるので) 警告してすべて出す。
   const { enums, models, ctx } = py.buildModels();
-  write('models.py', render('models', {
-    ...common,
-    mods: [...ctx.mods].sort().map((m) => ({ m })),
-    typingAny: ctx.typing.has('Any'),
-    typingAnnotated: ctx.typing.has('Annotated'),
-    enums, models,
-    allModels: models.map((m) => ({ classname: m.classname })),
-  }));
+  const wantedModels = models.filter((m) => want('models', [m.classname, m.schemaName]));
+  if (wantedModels.length > 0 && wantedModels.length < models.length) log(t('models_name_filter_unsupported'));
+  if (wantedModels.length > 0 || models.length === 0) {
+    write('models.py', render('models', {
+      ...common,
+      mods: [...ctx.mods].sort().map((m) => ({ m })),
+      typingAny: ctx.typing.has('Any'),
+      typingAnnotated: ctx.typing.has('Annotated'),
+      enums, models,
+      allModels: models.map((m) => ({ classname: m.classname })),
+    }), 'models');
+  }
 
   const ops = py.buildOperations(operations);
   const seen = new Set();
@@ -91,7 +98,9 @@ export function writeBase({ spec, operations, options, render, write, fileType, 
   const authFromApis = `${options.implPackage.startsWith('.') ? '.' : ''}${authFromRouter}`;
   const anySecured = ops.some((op) => op.secured);
 
-  for (const op of ops) {
+  // API は操作ごとに 1 ファイル。名前は ABC 名 (AddPetApi)、その Api を除いたもの、operationId、メソッド名のどれでもよい
+  const wantedOps = ops.filter((op) => want('apis', [op.abcName, op.abcName.replace(/Api$/, ''), op.operationId, op.methodName]));
+  for (const op of wantedOps) {
     const a = op.actx;
     write(`apis/${op.modName}_api.py`, render('api', {
       ...common,
@@ -111,10 +120,12 @@ export function writeBase({ spec, operations, options, render, write, fileType, 
         ...op.params.map((p) => ({ decl: `${p.pyName}: ${p.atype}${p.required ? '' : ` = ${p.defaultValue}`}`, name: p.pyName, description: p.description })),
       ],
       returnType: op.returnA,
-    }));
+    }), 'apis');
   }
-  write('apis/__init__.py', render('apis_init', { ...common, ops }));
-  write('__init__.py', render('init', common));
+  if (wantedOps.length > 0 || ops.length === 0) {
+    write('apis/__init__.py', render('apis_init', { ...common, ops: wantedOps }), 'apis');
+  }
+  write('__init__.py', render('init', common), 'supporting');
 
   return {
     ops,

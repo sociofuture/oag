@@ -50,16 +50,64 @@ function parseOptions(str, defs = {}) {
   return opts;
 }
 
-function createWriter(outDir) {
+// --global-property (-D): 生成する種類を絞る。openapi-generator と同じ書き方。
+//   -D models                 モデルだけ
+//   -D models=Pet:Tag         指定したモデルだけ (名前は : 区切り)
+//   -D apis,models=Pet        API 全部と、モデル Pet だけ
+//   -D supportingFiles        API・モデル以外 (runtime、router、pom.xml など) だけ
+// 1 つも指定しなければ、すべて生成する。
+const GLOBAL_KEYS = { models: 'models', apis: 'apis', supportingFiles: 'supporting' };
+// 本家のオプションだが、このツールはドキュメントもテストも出さないので、指定されても何もしない
+const GLOBAL_IGNORED = new Set(['modelTests', 'modelDocs', 'apiTests', 'apiDocs']);
+
+function parseGlobalProperties(list) {
+  const selection = {}; // 種類 -> true (全部) | Set (名前で絞る)
+  for (const item of list ?? []) {
+    for (const kv of item.split(',').filter(Boolean)) {
+      const i = kv.indexOf('=');
+      const key = (i < 0 ? kv : kv.slice(0, i)).trim();
+      const value = i < 0 ? '' : kv.slice(i + 1).trim();
+      if (GLOBAL_IGNORED.has(key)) continue;
+      const kind = GLOBAL_KEYS[key];
+      if (!kind) throw new Error(t('unknown_global_property', { name: key, valid: Object.keys(GLOBAL_KEYS).join(', ') }));
+      if (value === 'false') continue;
+      selection[kind] = value === '' || value === 'true' ? true : new Set(value.split(':').filter(Boolean));
+    }
+  }
+  return Object.keys(selection).length ? selection : null;
+}
+
+/** want(種類, 名前?): その種類 (と名前) を生成するか。名前は文字列か、別名を含む配列 */
+function createWant(selection) {
+  const matched = new Set(); // 名前で絞ったうち、実際に一致したもの
+  const want = (kind, names) => {
+    if (!selection) return true;
+    const sel = selection[kind];
+    if (!sel) return false;
+    if (names === undefined || sel === true) return true;
+    const hit = [].concat(names).find((n) => sel.has(n));
+    if (hit === undefined) return false;
+    matched.add(`${kind}:${hit}`);
+    return true;
+  };
+  const unmatched = () => Object.entries(selection ?? {}).flatMap(([kind, sel]) =>
+    (sel === true ? [] : [...sel].filter((n) => !matched.has(`${kind}:${n}`)).map((n) => ({ kind, name: n }))));
+  return { want, unmatched };
+}
+
+function createWriter(outDir, want) {
   const written = new Set();
   const root = path.resolve(outDir);
-  const write = (rel, content) => {
+  // kind: 'models' | 'apis' | 'supporting' (既定)。選ばれていない種類は書かず、false を返す
+  const write = (rel, content, kind = 'supporting') => {
+    if (!want(kind)) return false;
     const file = path.resolve(root, rel);
     if (!file.startsWith(root + path.sep)) throw new Error(t('outside_output', { path: rel }));
     const text = content.replace(/\r\n/g, '\n');
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, text);
     written.add(rel.split(path.sep).join('/'));
+    return true;
   };
   return { write, written, root };
 }
@@ -73,6 +121,7 @@ async function main() {
       output: { type: 'string', short: 'o' },
       props: { type: 'string', short: 'p' },
       'template-dir': { type: 'string', short: 't' },
+      'global-property': { type: 'string', short: 'D', multiple: true },
       lang: { type: 'string' },
     },
   });
@@ -114,12 +163,11 @@ async function main() {
   for (const d of target.meta.templateDirs ?? []) dirs.push(path.resolve(target.dir, d));
   const render = createRenderer(dirs);
 
-  const writer = createWriter(values.output);
-  await target.generate({
-    spec, operations, options, render,
-    write: writer.write,
-    log: (m) => console.warn(`[${values.generator}] ${m}`),
-  });
+  const { want, unmatched } = createWant(parseGlobalProperties(values['global-property']));
+  const writer = createWriter(values.output, want);
+  const log = (m) => console.warn(`[${values.generator}] ${m}`);
+  await target.generate({ spec, operations, options, render, write: writer.write, want, log });
+  for (const u of unmatched()) log(t('global_property_no_match', { kind: u.kind, name: u.name }));
   console.log(t('generated', { count: writer.written.size, dir: writer.root }));
 }
 

@@ -129,7 +129,32 @@ node oag.js generate -i <spec.yaml> -g <target> -o <output dir> [-p k=v,k=v] [-t
 | `-o` | Output directory |
 | `-p` | Target-specific options (comma-separated `key=value`). Corresponds to `--additional-properties` of openapi-generator |
 | `-t` | Template override directory. A `.mustache` file with the same name takes precedence |
+| `-D`, `--global-property` | Generate only some kinds of files: `models`, `apis`, `supportingFiles` (see below) |
 | `--lang` | Language of the messages: `en` or `ja` (see below) |
+
+### Generating only part of the output (`-D` / `--global-property`)
+
+Works like `--global-property` of openapi-generator. If you give any of the names below, **only those kinds** are generated; if you give none, everything is generated.
+
+| Name | What it generates |
+| --- | --- |
+| `models` | The model classes, and the index file that lists them (`models/index.ts`) |
+| `apis` | The API classes / interfaces, and the index file that lists them (`apis/index.ts`, `apis/__init__.py`) |
+| `supportingFiles` | Everything else: `runtime.ts`, `index.ts`, `RestApplication.java`, `pom.xml`, `router.py`, `runtime.py`, `.openapi-generator/`, ... |
+
+```bash
+node oag.js generate -i openapi/api.yml -g client/typescript-fetch -o ./frontend/src/openapi -D models
+node oag.js generate -i openapi/api.yml -g server/jax-rs -o ./backend-java -D apis,models=Pet:Tag
+node oag.js generate -i openapi/api.yml -g client/typescript-fetch -o ./out -D apis -D supportingFiles
+```
+
+- Add `=Name:Name` to pick items by name (separate the names with `:`). A model is matched by its class name or its schema name (`Pet`). An API is matched by its class name or the name without `Api` (`PetApi` / `Pet`); for the Python targets, which have one API per operation, by `AddPetApi`, `AddPet` or `addPet`.
+- Several names can be given as a comma-separated list or by repeating the option: `-D apis,models=Pet` is the same as `-D apis -D models=Pet`.
+- A name that matches nothing prints a warning.
+- The index files list only what is generated, so `-D models=Pet` writes a `models/index.ts` with `Pet` only. A model that refers to a model you did not select has a dangling import; that is up to you.
+- `modelTests`, `modelDocs`, `apiTests` and `apiDocs` (openapi-generator options) are accepted and ignored, because oag generates no tests or docs.
+- The Python targets write all models into one `models.py`, so models cannot be picked by name there: if only some of the names match, a warning is printed and all models are generated; if none match, `models.py` is not written.
+- `.openapi-generator/FILES` and `VERSION` (TypeScript) belong to `supportingFiles`.
 
 ### Language of the messages
 
@@ -489,14 +514,18 @@ export const meta = {
   },
 };
 
-export default async function generate({ spec, operations, options, render, write, log }) {
+export default async function generate({ spec, operations, options, render, write, want, log }) {
   // spec        : the loaded OpenAPI. Inline schemas are already promoted
   // operations  : array of { path, method, operationId, tags, summary, description, deprecated,
   //                          parameters, requestBody, responses, security, raw }
   //               ($ref is resolved; $ref inside schemas is kept so that model names survive)
   // options     : the values of -p (including defaults)
   // render(name, view) : renders a template (name without extension)
-  // write(relPath, content) : writes to a path relative to the output directory. Cannot write outside it
+  // write(relPath, content, kind) : writes to a path relative to the output directory. Cannot write outside it.
+  //               kind is 'models' | 'apis' | 'supporting' (default). Kinds not selected with -D are skipped
+  //               (returns false then)
+  // want(kind, names?) : whether this kind (and, if given, one of these names) is selected with -D.
+  //               Use it to skip items, and to list only what is generated in index files
   // log(message) : prints a warning
 }
 ```

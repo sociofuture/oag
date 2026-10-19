@@ -32,9 +32,14 @@ function fileHeader(spec) {
   ].join('\n');
 }
 
-export default async function generate({ spec, operations, render, write: rawWrite, log }) {
+export default async function generate({ spec, operations, render, write: rawWrite, want = () => true, log }) {
+  // 実際に書いたファイルだけを記録する (.openapi-generator/FILES 用)。-D で絞ると書かれないものがある
   const files = [];
-  const write = (rel, content) => { files.push(rel); rawWrite(rel, content); };
+  const write = (rel, content, kind) => {
+    const written = rawWrite(rel, content, kind);
+    if (written !== false) files.push(rel);
+    return written;
+  };
   const ts = createTs(spec);
   const header = fileHeader(spec);
   // 空白だけの行はエディタに削られやすいので、テンプレートでは変数で出力する
@@ -42,15 +47,24 @@ export default async function generate({ spec, operations, render, write: rawWri
 
   const models = ts.buildModels();
   const modelNames = new Set(models.map((m) => m.classname));
-  for (const m of models) {
+  // write の 3 番目の引数は種類 ('models' | 'apis' | 'supporting')。-D (--global-property) で絞られる。
+  // index.ts (バレル) は、実際に生成する分だけを並べる。
+  const wantedModels = models.filter((m) => want('models', [m.classname, m.schemaName]));
+  for (const m of wantedModels) {
     const view = { ...common, ...m, vars: m.vars?.map((v) => ({ ...v, typeDoc: `{${v.type.replace(/ \| null$/, '')}}` })) };
-    write(`models/${m.classname}.ts`, render(m.isEnum ? 'enum' : 'model', view));
+    write(`models/${m.classname}.ts`, render(m.isEnum ? 'enum' : 'model', view), 'models');
   }
-  write('models/index.ts', render('index', { exports: models.map((m) => `./${m.classname}`).sort() }));
+  // 名前で絞った結果が空なら、中身のない index.ts は出さない
+  if (wantedModels.length > 0 || models.length === 0) {
+    write('models/index.ts', render('index', { exports: wantedModels.map((m) => `./${m.classname}`).sort() }), 'models');
+  }
 
   const apis = ts.buildApis(operations, modelNames);
-  for (const api of apis) write(`apis/${api.classname}.ts`, render('api', { ...common, ...api }));
-  write('apis/index.ts', render('index', { exports: apis.map((a) => `./${a.classname}`).sort() }));
+  const wantedApis = apis.filter((a) => want('apis', [a.classname, a.classname.replace(/Api$/, '')]));
+  for (const api of wantedApis) write(`apis/${api.classname}.ts`, render('api', { ...common, ...api }), 'apis');
+  if (wantedApis.length > 0 || apis.length === 0) {
+    write('apis/index.ts', render('index', { exports: wantedApis.map((a) => `./${a.classname}`).sort() }), 'apis');
+  }
 
   let basePath = '';
   const server = spec.servers?.[0]?.url ?? '/';
@@ -59,12 +73,14 @@ export default async function generate({ spec, operations, render, write: rawWri
   } catch {
     log(t('servers_url_invalid', { server }));
   }
-  write('runtime.ts', render('runtime', { header, basePath: basePath.replace(/\/+$/, '') || '' }));
-  write('index.ts', render('index', { exports: ['./runtime', './apis/index', './models/index'] }));
+  write('runtime.ts', render('runtime', { header, basePath: basePath.replace(/\/+$/, '') || '' }), 'supporting');
+  write('index.ts', render('index', { exports: ['./runtime', './apis/index', './models/index'] }), 'supporting');
 
   // 本家が出力するメタ情報 (再生成で消えて git 差分にならないよう同じ内容を出す)
-  write('.openapi-generator-ignore', render('openapi-generator-ignore', {}));
-  const sorted = [...files].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  rawWrite('.openapi-generator/FILES', sorted.join('\n') + '\n');
-  rawWrite('.openapi-generator/VERSION', '7.12.0\n');
+  write('.openapi-generator-ignore', render('openapi-generator-ignore', {}), 'supporting');
+  if (want('supporting')) {
+    const sorted = [...files].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    rawWrite('.openapi-generator/FILES', sorted.join('\n') + '\n', 'supporting');
+    rawWrite('.openapi-generator/VERSION', '7.12.0\n', 'supporting');
+  }
 }

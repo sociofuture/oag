@@ -11,9 +11,9 @@ export const meta = {
   options: { ...commonOptions },
 };
 
-export default async function generate({ spec, operations, options, render, write: rawWrite, log }) {
+export default async function generate({ spec, operations, options, render, write: rawWrite, want, log }) {
   const write = guardWrite(rawWrite, options.implPackage);
-  const base = writeBase({ spec, operations, options, render, write, fileType: 'UploadFile', pydanticAlias: true });
+  const base = writeBase({ spec, operations, options, render, write, fileType: 'UploadFile', pydanticAlias: true, want, log });
 
   const routes = base.ops.map((op) => {
     const modelResp = op.returnR !== 'None' && !op.responseClass;

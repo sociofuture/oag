@@ -37,7 +37,7 @@ function zonedNow() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}000000${tz}[${zone}]`;
 }
 
-export default async function generate({ spec, operations, options, render, write, log }) {
+export default async function generate({ spec, operations, options, render, write, want = () => true, log }) {
   const o = {
     ...options,
     ws: options.useJakartaEe ? 'jakarta' : 'javax',
@@ -59,14 +59,17 @@ export default async function generate({ spec, operations, options, render, writ
     generatedAnnotation: `@${o.ws}.annotation.Generated(value = "org.openapitools.codegen.languages.JavaJAXRSSpecServerCodegen", ${stamp}comments = "Generator version: 7.12.0")`,
   };
 
+  // write の 3 番目の引数は種類 ('models' | 'apis' | 'supporting')。-D (--global-property) で絞られる
   for (const m of java.buildModels()) {
+    if (!want('models', [m.classname, m.schemaName])) continue;
     const view = { ...common, modelPackage: o.modelPackage, ...m };
     const tpl = m.isEnum ? 'enumClass' : 'model';
-    write(`${srcDir(o.modelPackage)}/${m.classname}.java`, render(tpl, view));
+    write(`${srcDir(o.modelPackage)}/${m.classname}.java`, render(tpl, view), 'models');
   }
 
   for (const api of java.buildApis(operations)) {
-    write(`${srcDir(o.apiPackage)}/${api.classname}.java`, render('api', { ...common, apiPackage: o.apiPackage, ...api }));
+    if (!want('apis', [api.baseName, api.classname])) continue;
+    write(`${srcDir(o.apiPackage)}/${api.classname}.java`, render('api', { ...common, apiPackage: o.apiPackage, ...api }), 'apis');
   }
 
   // 本家は interfaceOnly でも RestApplication / RestResourceRoot を出力する
@@ -78,14 +81,14 @@ export default async function generate({ spec, operations, options, render, writ
     log(t('servers_url_invalid', { server }));
   }
   const rest = { ...common, invokerPackage: o.invokerPackage, basePath };
-  write(`${srcDir(o.invokerPackage)}/RestApplication.java`, render('restApplication', rest));
-  write(`${srcDir(o.invokerPackage)}/RestResourceRoot.java`, render('restResourceRoot', rest));
+  write(`${srcDir(o.invokerPackage)}/RestApplication.java`, render('restApplication', rest), 'supporting');
+  write(`${srcDir(o.invokerPackage)}/RestResourceRoot.java`, render('restResourceRoot', rest), 'supporting');
 
   if (o.generatePom) {
     write('pom.xml', render('pom', {
       ...common,
       groupId: o.groupId, artifactId: o.artifactId, artifactVersion: o.artifactVersion,
       sourceFolder: o.sourceFolder, title: spec.info?.title ?? o.artifactId,
-    }));
+    }), 'supporting');
   }
 }

@@ -33,9 +33,9 @@ function extractLine(p, log) {
   return `${p.pyName} = parse(${p.rtype}, ${src}, ${n}, "${p.in}"${opt})`;
 }
 
-export default async function generate({ spec, operations, options, render, write: rawWrite, log }) {
+export default async function generate({ spec, operations, options, render, write: rawWrite, want, log }) {
   const write = guardWrite(rawWrite, options.implPackage);
-  const base = writeBase({ spec, operations, options, render, write, fileType: 'Any' });
+  const base = writeBase({ spec, operations, options, render, write, fileType: 'Any', want, log });
 
   // Falcon は 1 つのパスに 1 つのリソースクラス (HTTP メソッドごとに on_xxx)。同じパスの操作をまとめる。
   const byPath = new Map();
