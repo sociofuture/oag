@@ -267,6 +267,7 @@ Java JAX-RS (jaxrs-spec) のサーバースタブです。openapi-generator 7.26
 | `useSwaggerAnnotations` | `true` | `io.swagger.annotations` を付ける |
 | `useTags` | `false` | API クラスをタグで分ける。`false` ならパスの先頭セグメントで分ける |
 | `interfaceOnly` | `false` | API を interface として生成する |
+| `returnResponse` | `false` | `interfaceOnly=true` のとき、interface のメソッドの戻り値を、スキーマの型ではなく `Response` にする |
 | `generateRootResources` | `true` | `RestApplication` と `RestResourceRoot` を出力する。`interfaceOnly=true` のときだけ意味がある (それ以外は常に出力する)。openapi-generator 7.26.0 と同じ |
 | `openApiNullable` | `true` | モデルに `JsonNullable` (`org.openapitools.jackson.nullable`) の import を付ける |
 | `generatePom` | `true` | `pom.xml` を出力する |

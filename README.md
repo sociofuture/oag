@@ -267,6 +267,7 @@ A Java JAX-RS (jaxrs-spec) server stub. It has been confirmed that the output is
 | `useSwaggerAnnotations` | `true` | Add `io.swagger.annotations` |
 | `useTags` | `false` | Split API classes by tag. When `false`, split by the first path segment |
 | `interfaceOnly` | `false` | Generate the API as an interface |
+| `returnResponse` | `false` | With `interfaceOnly=true`, make every interface method return `Response` instead of the schema type |
 | `generateRootResources` | `true` | Write `RestApplication` and `RestResourceRoot`. Only useful if `interfaceOnly=true` (they are always written otherwise). Same as openapi-generator 7.26.0 |
 | `openApiNullable` | `true` | Import `JsonNullable` (`org.openapitools.jackson.nullable`) in the models |
 | `generatePom` | `true` | Write `pom.xml` |

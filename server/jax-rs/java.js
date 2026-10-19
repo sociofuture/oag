@@ -366,7 +366,7 @@ export function createJava(spec, o) {
     let returnType = 'void';
     const rs = mediaOf(methodCode && op.responses[methodCode])?.schema;
     if (rs) returnType = typeOf(rs, imports).replace(/@Valid /g, ''); // 戻り値の型には @Valid が付かない
-    if (!o.interfaceOnly) returnType = 'Response';
+    if (!o.interfaceOnly || o.returnResponse) returnType = 'Response';
 
     const produces = [...new Set(Object.values(op.responses).flatMap((r) => Object.keys(r.content ?? {})))];
     const responses = Object.entries(op.responses).map(([code, r]) => {

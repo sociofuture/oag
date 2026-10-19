@@ -29,6 +29,7 @@ export const meta = {
         ja: 'RestApplication と RestResourceRoot を出力する。interfaceOnly=true のときだけ意味がある (それ以外は常に出力する)',
       },
     },
+    returnResponse: { default: false, description: { en: 'Use Response as the return type of the interface methods (with interfaceOnly)', ja: 'interface のメソッドの戻り値を Response にする (interfaceOnly のとき)' } },
     openApiNullable: { default: true, description: { en: 'Import JsonNullable (org.openapitools.jackson.nullable) in the models', ja: 'モデルに JsonNullable (org.openapitools.jackson.nullable) の import を付ける' } },
     generatePom: { default: true, description: { en: 'Write pom.xml', ja: 'pom.xml を出力する' } },
     hideGenerationTimestamp: { default: false, description: { en: 'Omit the date in @Generated', ja: '@Generated の date を出力しない' } },
@@ -65,6 +66,7 @@ export default async function generate({ spec, operations, options, render, writ
     jakarta: o.useJakartaEe,
     swagger: o.useSwaggerAnnotations,
     interfaceOnly: o.interfaceOnly,
+    returnResponse: { default: false, description: { en: 'Use Response as the return type of the interface methods (with interfaceOnly)', ja: 'interface のメソッドの戻り値を Response にする (interfaceOnly のとき)' } },
     openApiNullable: o.openApiNullable,
     // 空白だけの行はエディタに削られやすいので、テンプレートでは変数で出力する
     sp2: '  ',
